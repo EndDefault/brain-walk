@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MemorySteps</string>
+    <string name="brand_name">기억 산책</string>
+    <string name="brand_caption">MemorySteps</string>
+    <string name="home_title">오늘도,\n차근차근 기억 산책</string>
+    <string name="home_description">색, 그림, 숫자를 살펴보며\n내 속도에 맞춰 시작해 보세요.</string>
+    <string name="guide_button">이용 안내 보기</string>
+    <string name="home_button">홈으로 돌아가기</string>
+    <string name="training_heading">이렇게 기억해요</string>
+    <string name="color_title">색 기억하기</string>
+    <string name="color_description">보았던 색을 찾아요</string>
+    <string name="picture_title">그림 기억하기</string>
+    <string name="picture_description">보았던 그림을 찾아요</string>
+    <string name="number_title">숫자 기억하기</string>
+    <string name="number_description">보았던 숫자를 찾아요</string>
+    <string name="record_heading">나의 학습 기록</string>
+    <string name="empty_record">첫 훈련을 시작하면 기록이 표시됩니다</string>
+    <string name="setup_status">훈련 기능을 준비하고 있어요. 먼저 이용 안내를 살펴보세요.</string>
+    <string name="guide_title">천천히 살펴보고, 기억해요</string>
+    <string name="guide_description">한 번의 훈련은 10문제예요. 처음에는 다음 순서로 진행해요.</string>
+    <string name="step_number">%1$d</string>
+    <string name="remember_title">대상을 살펴봐요</string>
+    <string name="remember_description">처음에는 20초 동안 보여 드려요. 다 기억했다면 ‘다음’을 눌러도 좋아요.</string>
+    <string name="wait_title">잠깐 기다려요</string>
+    <string name="wait_description">대상이 사라지고 3초 동안 기다려요.</string>
+    <string name="solve_title">같은 것을 찾아요</string>
+    <string name="solve_description">4개의 보기에서 골라요. 기회는 최대 3번이고, 처음에는 시간제한이 없어요.</string>
+    <string name="encouragement">서두르지 않아도 괜찮아요. 편안한 속도로 함께해요.</string>
+</resources>
