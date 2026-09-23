@@ -90,4 +90,16 @@
     <string name="storage_error">기록을 저장하거나 불러오지 못했습니다</string>
     <string name="storage_error_description">다시 시도하면 저장된 기록부터 이어갑니다.</string>
     <string name="retry_button">다시 시도</string>
+    <string name="adaptive_heading">현재 난이도</string>
+    <string name="adaptive_notice">색·그림·숫자마다 10문제의 기록이 모이면, 게임이 끝난 뒤 다음 게임의 난이도를 조절합니다.</string>
+    <string name="adaptive_collected">다음 조정을 위한 기록 %1$d / 10</string>
+    <string name="adaptive_pending">기록 10개가 모였습니다. 이번 게임이 끝나면 조절합니다.</string>
+    <string name="adaptive_conditions">기억 %1$s초 · 기다림 %2$s초\n보기 %3$d개 · 풀이 %4$s</string>
+    <string name="adaptive_seconds">%1$s초</string>
+    <string name="adaptive_unlimited">시간 제한 없음</string>
+    <string name="ai_diagnostics">개발용 AI 확인</string>
+    <string name="ai_mode_bandit">밴딧 AI</string>
+    <string name="ai_mode_comparison">비교 규칙</string>
+    <string name="ai_mode_notice">개발용 화면입니다. 모드를 바꾸면 미완성 학습 묶음과 보상 대기는 닫히고, 난이도·복원 이력·학습값은 유지됩니다. 진행 중인 게임을 끝낸 뒤 바꿀 수 있습니다.</string>
+    <string name="ai_back">학습 현황으로</string>
 </resources>

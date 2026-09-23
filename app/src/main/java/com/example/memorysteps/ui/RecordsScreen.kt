@@ -13,7 +13,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
-fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, history: List<CycleHistory>, onHome: () -> Unit) {
+fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, history: List<CycleHistory>,
+    profiles: List<LearningProfile>, onDiagnostics: (() -> Unit)?, onHome: () -> Unit) {
     Page {
         PageTitle(stringResource(R.string.home_title))
         Text(stringResource(R.string.completed_games, overview.completedCycles), style = MaterialTheme.typography.titleLarge)
@@ -30,6 +31,15 @@ fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, histo
                 else stringResource(R.string.summary_type, typeName(type), stats.firstCorrect, stats.problems))
         }
         HorizontalDivider()
+        PageTitle(stringResource(R.string.adaptive_heading))
+        Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium)
+        profiles.forEach { profile ->
+            Text(typeName(GameType.valueOf(profile.difficulty.type)), style = MaterialTheme.typography.titleLarge)
+            Text(conditionsText(profile.difficulty.conditions()))
+            Text(if (profile.pending) stringResource(R.string.adaptive_pending)
+                else stringResource(R.string.adaptive_collected, profile.collected))
+        }
+        HorizontalDivider()
         PageTitle(stringResource(R.string.recent_records))
         history.forEach { cycle ->
             val date = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(cycle.createdAt))
@@ -44,5 +54,6 @@ fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, histo
         }
         Text(stringResource(R.string.records_notice), style = MaterialTheme.typography.bodyMedium)
         ActionButton(stringResource(R.string.home_button), onHome, primary = false)
+        if (onDiagnostics != null) ActionButton(stringResource(R.string.ai_diagnostics), onDiagnostics, primary = false)
     }
 }

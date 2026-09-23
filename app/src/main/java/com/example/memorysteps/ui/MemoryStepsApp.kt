@@ -16,12 +16,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.memorysteps.R
+import com.example.memorysteps.BuildConfig
 
 private const val HOME = "home"
 private const val GUIDE = "guide"
 private const val TRAINING = "training"
 private const val LEARN = "learn"
 private const val RECORDS = "records"
+private const val DIAGNOSTICS = "diagnostics"
 
 @Composable
 fun MemoryStepsApp() {
@@ -35,6 +37,7 @@ fun MemoryStepsApp() {
     val overview by trainingModel.overview.collectAsStateWithLifecycle()
     val types by trainingModel.typeStatistics.collectAsStateWithLifecycle()
     val history by trainingModel.history.collectAsStateWithLifecycle()
+    val profiles by trainingModel.profiles.collectAsStateWithLifecycle()
     var confirmEnd by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(trainingModel) {
         trainingModel.openTraining.collect { navController.navigate(TRAINING) { launchSingleTop = true } }
@@ -50,7 +53,15 @@ fun MemoryStepsApp() {
                 onPractice = { trainingModel.start(it, practice = true) }, onStop = { confirmEnd = true },
                 onHome = { navController.popBackStack(HOME, false) })
         }
-        composable(RECORDS) { RecordsScreen(overview, types, history) { navController.popBackStack(HOME, false) } }
+        composable(RECORDS) {
+            RecordsScreen(overview, types, history, profiles,
+                onDiagnostics = if (BuildConfig.DEBUG) ({ navController.navigate(DIAGNOSTICS) }) else null,
+                onHome = { navController.popBackStack(HOME, false) })
+        }
+        if (BuildConfig.DEBUG) composable(DIAGNOSTICS) {
+            DiagnosticsScreen(trainingModel, enabled = ready && !busy && !storageError && active == null,
+                onBack = { navController.popBackStack() })
+        }
         composable(GUIDE) {
             GuideScreen(onReturnHome = { navController.popBackStack() })
         }
