@@ -39,7 +39,7 @@ data class ProblemEntity(
     val outcome: String?, val invalidReason: String?, val actualMemoryMs: Long?,
     val usedNextButton: Boolean, val solveElapsedMs: Long?, val firstChoiceMs: Long?,
     val firstCorrect: Boolean, val finalCorrect: Boolean, val attempts: Int,
-    // Raw observations are available for the later algorithm; they have not trained a model yet.
+    // Initial value for incomplete/v1 records; completed formal records are assigned atomically.
     val learningStatus: String = "PENDING_ALGORITHM",
 )
 
