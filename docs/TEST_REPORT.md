@@ -121,3 +121,45 @@ pwsh -File tools/Write-DependencyInventory.ps1
 ### 이번 범위에서 실행하지 않은 검증
 
 UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임 플레이·화면 표시 시점·백그라운드 복귀 테스트는 실행하지 않았습니다. 기존 홈/안내 UI는 변경하지 않아 계측 테스트도 재실행하지 않았습니다. 위 첫 PR의 기기 실행 결과는 과거 코드의 기록입니다. 실제 그림 렌더링, 색 구분 사용성, 16개 보기 접근성, 저장·프로세스 복구, 4/3/3 사이클, 난이도/밴딧 검증은 해당 후속 PR에 남습니다.
+
+## 2026-09-23 · 시작 버튼에서 실제 플레이까지
+
+사용자 후속 요청으로 아직 병합 전인 `feature/game-engine`에 화면과 메모리 내 사이클을 추가했습니다. 위 엔진 단독 검증 이후의 최신 결과입니다.
+
+| 검증 | 결과 |
+| --- | --- |
+| JVM 테스트 | **45개 통과**, 실패·건너뜀 0. 기존 엔진 38 + 사이클 7 |
+| 태블릿 계측 테스트 | **5개 통과**, 실패 0. Medium_Tablet API 34, 2560×1600px/320dpi/글자 100% |
+| 작은 화면·오프라인 계측 테스트 | 동일 **5개 통과**, 실패 0. 720×1600px/320dpi → 360×800dp, 글자 200%, Wi-Fi·모바일 데이터 OFF |
+| 최종 APK·계측 APK 빌드 | `assembleDebug`, `assembleDebugAndroidTest` 통과 |
+| 최종 Lint | 오류 0, 버전 권고 경고 **11**. 미사용 문자열 경고 9개는 리소스 정리로 해결 |
+| 외부 의존성 | 기존 고유 98개 유지, 라이선스 메타데이터 미확인 0 |
+
+계측 테스트는 기존 안내 이동/재생성 2개와 다음 게임 테스트 3개입니다.
+
+1. 홈의 종합·색·그림·숫자 시작 버튼 네 개가 기억 화면과 다음 버튼으로 연결됩니다. 홈 복귀와 진행 종료 확인도 실행합니다.
+2. 종합 훈련 10문제에서 기억 대상을 읽고 다음 → 실제 3초 대기 → 정답 보기를 선택합니다. 마지막 전체 결과와 홈의 첫 선택 정답 10/10 표시를 확인합니다.
+3. 오답 보기 비활성화 후 정답, 다음 문제에서 Activity 재생성, 중단 안내와 새 문제 교체, 홈 왕복 이어하기를 확인합니다. 완료한 첫 문제는 보존되고 문제 순서가 2/10으로 유지됩니다.
+
+첫 태블릿 실행의 실패 1개는 테스트 헬퍼가 스크롤 영역이 없는 종료 확인 대화상자에도 `performScrollTo()`를 적용한 문제였습니다. 해당 확인 버튼을 직접 클릭하도록 수정 후 5개가 통과했습니다. 화면 이탈 중인 이전 사이클의 정리 이벤트를 세션 ID로 제한하는 보완도 최종 태블릿/작은 화면 검증에 포함했습니다.
+
+최종 Lint 경고는 OldTargetApi 1, AndroidGradlePluginVersion 2, GradleDependency 5, NewerVersionAvailable 3개입니다. Lifecycle/Coroutines를 기존 전이 버전과 같은 직접 의존성으로 명시하면서 버전 권고 대상이 늘었으며 경고를 숨기지 않았습니다.
+
+### 실제 화면
+
+![시작 버튼이 연결된 홈](screenshots/play-home-tablet.png)
+![보기 선택 화면](screenshots/play-options-tablet.png)
+
+[기억 화면](screenshots/play-memory-tablet.png) · [정답 결과](screenshots/play-result-tablet.png) · [작은 화면·글자 200% 홈](screenshots/play-home-largefont.png)
+
+태블릿에서 실제 시작 → 기억 → 보기 → 정답 화면을 캡처하고 검토했습니다. 작은 화면에서는 문구가 줄바꿈되고 세로 스크롤로 아래 버튼에 접근할 수 있습니다. 작은 화면 검증 뒤 화면 크기·글자·네트워크 설정을 원래 값으로 복원했습니다.
+
+### 재현과 한계
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:connectedDebugAndroidTest --console=plain
+```
+
+실행 로그는 `.artifacts/play-verification.log`, `.artifacts/play-small-offline-tests.txt`, 최종 문자열 정리 후 빌드는 `.artifacts/play-final-build.log`입니다. 작은 화면/오프라인 실행은 설치된 테스트 APK로 `am instrument -w`를 실행했습니다.
+
+현재 모든 플레이는 초기 조건(20초·3초·보기 4개·풀이 무제한)입니다. 타이머 경계는 JVM에서 검증했으나 제한시간이 있는 실제 UI, 6/9/12/16개 보기의 기기 사용성, TalkBack·시니어 실물 평가와 API 26/36 실행은 미검증입니다. **Room 저장·프로세스 종료 후 복구·영구 누적 기록·적응 난이도·밴딧은 미구현**입니다. 앱 종료 시 현재 진행과 결과가 사라지는 제한을 홈과 결과에 표시합니다.
