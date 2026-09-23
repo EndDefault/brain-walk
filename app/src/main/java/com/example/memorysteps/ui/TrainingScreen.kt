@@ -2,46 +2,35 @@ package com.example.memorysteps.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.memorysteps.R
-import com.example.memorysteps.game.GameType
-import com.example.memorysteps.game.RoundOutcome
-import com.example.memorysteps.game.RoundPhase
-import com.example.memorysteps.game.TrainingSnapshot
+import com.example.memorysteps.game.*
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.awaitCancellation
 
 @Composable
 internal fun typeName(type: GameType): String = stringResource(when (type) {
@@ -51,13 +40,16 @@ internal fun typeName(type: GameType): String = stringResource(when (type) {
 })
 
 @Composable
-fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome: () -> Unit) {
+fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack: () -> Unit, onHome: () -> Unit) {
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
-    // An outgoing navigation entry must not pause a newly started cycle.
+    // Outgoing navigation entries must not interrupt a newly started cycle.
     val sessionId = remember(owner) { state.sessionId }
+    var menuOpen by rememberSaveable(sessionId) { mutableStateOf(false) }
     val id = state.problem.id
     val phase = state.round.phase
-    BackHandler { viewModel.pause(sessionId); onHome() }
+    val openMenu = { menuOpen = true; viewModel.pause(sessionId) }
+    BackHandler(enabled = !menuOpen, onBack = openMenu)
     DisposableEffect(owner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_PAUSE) viewModel.pause(sessionId)
@@ -65,111 +57,192 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer); viewModel.pause(sessionId) }
     }
-    LaunchedEffect(owner, viewModel) {
-        owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+    LaunchedEffect(owner, viewModel, menuOpen) {
+        if (!menuOpen) owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (isActive) { delay(100); viewModel.tick() }
         }
     }
-    LaunchedEffect(id, phase, state.showSummary) {
-        if (!state.showSummary && (phase == RoundPhase.READY || phase == RoundPhase.OPTIONS_PENDING)) {
+    LaunchedEffect(id, phase, state.showSummary, menuOpen) {
+        if (!menuOpen && !state.showSummary && (phase == RoundPhase.READY || phase == RoundPhase.OPTIONS_PENDING)) {
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-                // Navigation may still be entering. Cross a drawn frame after resume.
                 withFrameNanos { }; withFrameNanos { }
                 if (phase == RoundPhase.READY) viewModel.memoryShown(id) else viewModel.optionsShown(id)
                 awaitCancellation()
             }
         }
     }
-    // Reset scrolling for each problem/phase so content never begins offscreen.
-    key(id, phase, state.showSummary) {
-        Page {
-            if (state.showSummary) {
-                PageTitle(stringResource(R.string.summary_title))
-                Text(stringResource(R.string.summary_first, state.firstCorrect), style = MaterialTheme.typography.titleLarge)
-                Text(stringResource(R.string.summary_final, state.finalCorrect))
-                HorizontalDivider()
-                GameType.entries.forEach { type ->
-                    val results = state.completed.filter { it.type == type }
-                    if (results.isNotEmpty()) Text(stringResource(R.string.summary_type, typeName(type),
-                        results.count { it.result.firstChoiceCorrect }, results.size))
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Column(Modifier.safeDrawingPadding().fillMaxSize().testTag("training-frame"), horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(Modifier.widthIn(max = 1100.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.question_progress, state.questionNumber, typeName(state.problem.type)),
+                        Modifier.testTag("question-progress"), style = MaterialTheme.typography.titleLarge)
+                    if (state.practice) Text(stringResource(R.string.practice_label), style = MaterialTheme.typography.bodyMedium)
                 }
-                Text(stringResource(R.string.session_notice), style = MaterialTheme.typography.bodyMedium)
-            } else {
-                Text(stringResource(R.string.question_progress, state.questionNumber, typeName(state.problem.type)),
-                    modifier = Modifier.testTag("question-progress"), style = MaterialTheme.typography.titleLarge)
-                when (phase) {
-                    RoundPhase.READY, RoundPhase.MEMORY -> {
-                        PageTitle(stringResource(R.string.memory_prompt))
-                        Countdown(state.round.remainingStageMs ?: state.problem.conditions.memoryLimitMs)
-                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            MemoryItemView(state.problem.target, Modifier.size(180.dp).testTag("memory-target"), large = true)
-                        }
-                        if (phase == RoundPhase.MEMORY) ActionButton(stringResource(R.string.next_button), { viewModel.next(id) })
-                    }
-                    RoundPhase.WAIT -> {
-                        PageTitle(stringResource(R.string.wait_prompt))
-                        Countdown(state.round.remainingStageMs ?: 0)
-                        Box(Modifier.height(180.dp))
-                    }
-                    RoundPhase.OPTIONS_PENDING, RoundPhase.SOLVE -> {
-                        PageTitle(stringResource(R.string.solve_prompt))
-                        Text(stringResource(R.string.attempts_left, state.round.attemptsRemaining),
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-                        if (state.problem.conditions.solveLimitMs == null) Text(stringResource(R.string.unlimited))
-                        else Countdown(state.round.remainingStageMs ?: state.problem.conditions.solveLimitMs!!)
-                        if (state.round.choices.isNotEmpty()) Text(stringResource(R.string.wrong_feedback))
-                        state.problem.options.chunked(state.problem.conditions.layout.columns).forEach { options ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                options.forEach { option ->
-                                    val wrong = option.id in state.round.disabledOptionIds
-                                    Surface(
-                                        onClick = { viewModel.answer(id, option.id) },
-                                        enabled = phase == RoundPhase.SOLVE && !wrong,
-                                        modifier = Modifier.weight(1f).heightIn(min = 150.dp).testTag("option-${option.id}"),
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (wrong) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
-                                        border = BorderStroke(if (wrong) 2.dp else 1.dp, MaterialTheme.colorScheme.outline),
-                                    ) {
-                                        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Text(stringResource(R.string.choice_number, state.problem.options.indexOf(option) + 1),
-                                                style = MaterialTheme.typography.bodyMedium)
-                                            MemoryItemView(option.item, Modifier.fillMaxWidth().height(100.dp))
-                                            if (wrong) Text(stringResource(R.string.wrong_choice), style = MaterialTheme.typography.bodyMedium)
-                                        }
+                OutlinedButton(openMenu, Modifier.heightIn(min = 64.dp).testTag("pause-button"),
+                    shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(16.dp),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)) {
+                    Text(stringResource(R.string.pause_button), textAlign = TextAlign.Center)
+                }
+            }
+            // Only the stage body scrolls. The primary action never moves with the image.
+            BoxWithConstraints(Modifier.weight(1f).widthIn(max = 1100.dp).fillMaxWidth().testTag("training-stage")) {
+                val viewportHeight = maxHeight
+                val targetSize = minOf(maxWidth - 48.dp, (maxHeight * 0.52f).coerceIn(220.dp, 340.dp))
+                key(id, phase, state.showSummary) {
+                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewportHeight)
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
+                        // Conceal the target/options before the pause transaction completes.
+                        if (!menuOpen) when {
+                            state.showSummary -> TrainingSummary(state)
+                            phase == RoundPhase.READY || phase == RoundPhase.MEMORY -> {
+                                StageTitle(stringResource(R.string.memory_prompt))
+                                Countdown(state.round.remainingStageMs ?: state.problem.conditions.memoryLimitMs)
+                                MemoryItemView(state.problem.target, Modifier.size(targetSize).testTag("memory-target"), large = true)
+                            }
+                            phase == RoundPhase.WAIT -> {
+                                StageTitle(stringResource(R.string.wait_prompt))
+                                Countdown(state.round.remainingStageMs ?: 0, prominent = true)
+                            }
+                            phase == RoundPhase.OPTIONS_PENDING || phase == RoundPhase.SOLVE -> {
+                                StageTitle(stringResource(R.string.solve_prompt))
+                                Text(stringResource(R.string.attempts_left, state.round.attemptsRemaining),
+                                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                    fontSize = 30.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                                state.problem.conditions.solveLimitMs?.let { Countdown(state.round.remainingStageMs ?: it) }
+                                AnswerOptions(state, busy) { viewModel.answer(id, it) }
+                            }
+                            phase == RoundPhase.FINISHED -> {
+                                val result = checkNotNull(state.round.result)
+                                when (result.outcome) {
+                                    RoundOutcome.CORRECT -> Text(stringResource(R.string.correct_result),
+                                        Modifier.fillMaxWidth().testTag("correct-feedback").semantics { liveRegion = LiveRegionMode.Polite },
+                                        fontSize = 56.sp, lineHeight = 76.sp, fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+                                    RoundOutcome.INTERRUPTED -> {
+                                        StageTitle(stringResource(R.string.interrupted_title))
+                                        Text(stringResource(R.string.interrupted_description), textAlign = TextAlign.Center)
+                                    }
+                                    else -> {
+                                        StageTitle(stringResource(if (result.outcome == RoundOutcome.TIMEOUT) R.string.timeout_result else R.string.wrong_result))
+                                        Text(stringResource(R.string.answer_label), textAlign = TextAlign.Center)
+                                        MemoryItemView(state.problem.target, Modifier.size(targetSize), large = true)
                                     }
                                 }
                             }
                         }
                     }
-                    RoundPhase.FINISHED -> {
-                        val result = checkNotNull(state.round.result)
-                        if (result.outcome == RoundOutcome.INTERRUPTED) {
-                            PageTitle(stringResource(R.string.interrupted_title))
-                            Text(stringResource(R.string.interrupted_description))
-                            ActionButton(stringResource(R.string.resume_question), { viewModel.resume(id) })
-                        } else {
-                            PageTitle(stringResource(when (result.outcome) {
-                                RoundOutcome.CORRECT -> R.string.correct_result
-                                RoundOutcome.TIMEOUT -> R.string.timeout_result
-                                else -> R.string.wrong_result
-                            }))
-                            Text(stringResource(R.string.answer_label))
-                            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                MemoryItemView(state.problem.target, Modifier.size(160.dp), large = true)
-                            }
-                            ActionButton(stringResource(if (state.complete) R.string.show_results else R.string.next_question),
-                                { viewModel.advance(id) })
+                }
+            }
+            if (!menuOpen) {
+                val label = when {
+                    state.showSummary -> R.string.home_button
+                    phase == RoundPhase.READY || phase == RoundPhase.MEMORY -> R.string.next_button
+                    phase == RoundPhase.FINISHED && state.round.result?.outcome == RoundOutcome.INTERRUPTED -> R.string.resume_question
+                    phase == RoundPhase.FINISHED -> if (state.complete) R.string.show_results else R.string.next_question
+                    else -> null
+                }
+                if (label != null) Box(Modifier.widthIn(max = 800.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp)) {
+                    Button(onClick = {
+                        when {
+                            state.showSummary -> onHome()
+                            phase == RoundPhase.MEMORY -> viewModel.next(id)
+                            state.round.result?.outcome == RoundOutcome.INTERRUPTED -> viewModel.resume(id)
+                            phase == RoundPhase.FINISHED -> viewModel.advance(id)
                         }
+                    }, enabled = !busy && phase != RoundPhase.READY,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp).testTag("stage-action"),
+                        shape = RoundedCornerShape(8.dp), contentPadding = PaddingValues(20.dp)) {
+                        Text(stringResource(label), fontSize = 28.sp, lineHeight = 38.sp, textAlign = TextAlign.Center)
                     }
                 }
             }
-            ActionButton(stringResource(R.string.home_button), { viewModel.pause(sessionId); onHome() }, primary = false)
+        }
+    }
+    if (menuOpen) PauseMenu(
+        restart = state.round.result?.outcome == RoundOutcome.INTERRUPTED,
+        enabled = !busy && phase == RoundPhase.FINISHED,
+        onContinue = {
+            if (state.round.result?.outcome == RoundOutcome.INTERRUPTED) viewModel.resume(id)
+            menuOpen = false
+        },
+        onBack = { viewModel.pause(sessionId); onBack() },
+        onHome = { viewModel.pause(sessionId); onHome() },
+    )
+}
+
+@Composable
+private fun StageTitle(text: String) {
+    Text(text, Modifier.fillMaxWidth().semantics { heading() }, fontSize = 38.sp, lineHeight = 52.sp,
+        fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun Countdown(milliseconds: Long, prominent: Boolean = false) {
+    val seconds = (milliseconds + 999) / 1000
+    val description = stringResource(R.string.seconds_left, seconds)
+    Text(seconds.toString(), Modifier.testTag(if (prominent) "wait-countdown" else "stage-countdown")
+        .clearAndSetSemantics { contentDescription = description },
+        fontSize = if (prominent) 160.sp else 64.sp, lineHeight = if (prominent) 190.sp else 80.sp,
+        fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun AnswerOptions(state: TrainingSnapshot, busy: Boolean, onAnswer: (String) -> Unit) {
+    state.problem.options.chunked(state.problem.conditions.layout.columns).forEach { options ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            options.forEach { option ->
+                val wrong = option.id in state.round.disabledOptionIds
+                val wrongDescription = stringResource(R.string.wrong_choice)
+                Surface(onClick = { onAnswer(option.id) },
+                    enabled = state.round.phase == RoundPhase.SOLVE && !wrong && !busy,
+                    modifier = Modifier.weight(1f).heightIn(min = 164.dp).testTag("option-${option.id}")
+                        .semantics { if (wrong) stateDescription = wrongDescription },
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (wrong) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)) {
+                    Column(Modifier.padding(12.dp).alpha(if (wrong) 0.4f else 1f),
+                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.choice_number, state.problem.options.indexOf(option) + 1),
+                            style = MaterialTheme.typography.bodyMedium)
+                        MemoryItemView(option.item, Modifier.fillMaxWidth().height(124.dp))
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun Countdown(milliseconds: Long) {
-    Text(stringResource(R.string.seconds_left, (milliseconds + 999) / 1000), style = MaterialTheme.typography.bodyLarge)
+private fun TrainingSummary(state: TrainingSnapshot) {
+    StageTitle(stringResource(if (state.practice) R.string.practice_summary else R.string.summary_title))
+    Text(stringResource(R.string.summary_first, state.firstCorrect), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+    Text(stringResource(R.string.summary_final, state.finalCorrect), textAlign = TextAlign.Center)
+    HorizontalDivider()
+    GameType.entries.forEach { type ->
+        val results = state.completed.filter { it.type == type }
+        if (results.isNotEmpty()) Text(stringResource(R.string.summary_type, typeName(type),
+            results.count { it.result.firstChoiceCorrect }, results.size), textAlign = TextAlign.Center)
+    }
+    Text(stringResource(if (state.practice) R.string.practice_notice else R.string.session_notice),
+        style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun PauseMenu(restart: Boolean, enabled: Boolean, onContinue: () -> Unit, onBack: () -> Unit, onHome: () -> Unit) {
+    Dialog(onDismissRequest = {}, properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false, usePlatformDefaultWidth = false)) {
+        Surface(Modifier.padding(24.dp).widthIn(max = 520.dp).fillMaxWidth(), shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                StageTitle(stringResource(R.string.pause_title))
+                if (restart) Text(stringResource(R.string.pause_notice), textAlign = TextAlign.Center)
+                ActionButton(stringResource(if (restart) R.string.resume_question else R.string.pause_continue), onContinue, enabled = enabled)
+                ActionButton(stringResource(R.string.pause_back), onBack, primary = false, enabled = enabled)
+                ActionButton(stringResource(R.string.home_button), onHome, primary = false, enabled = enabled)
+            }
+        }
+    }
 }

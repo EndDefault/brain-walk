@@ -1,6 +1,8 @@
 package com.example.memorysteps
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -13,12 +15,17 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NavigationSmokeTest {
-    @get:Rule
+    @get:Rule(order = 0) val records = FreshLearningRecords()
+    @get:Rule(order = 1)
     val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun guideOpensAndReturnButtonRestoresHome() {
+        compose.onAllNodes(hasClickAction()).assertCountEquals(3)
+        compose.onNodeWithText(text(R.string.brand_name)).assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.home_title)).performScrollTo().performClick()
         compose.onNodeWithText(text(R.string.empty_record)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.home_button)).performScrollTo().performClick()
         compose.onNodeWithText(text(R.string.guide_button)).performScrollTo().performClick()
         compose.onNodeWithText(text(R.string.guide_title)).assertIsDisplayed()
         compose.onNodeWithText(text(R.string.solve_description)).performScrollTo().assertIsDisplayed()

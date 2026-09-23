@@ -4,7 +4,7 @@
 
 ## 앱·테스트 라이브러리
 
-실제로 해석한 98개 고유 모듈의 버전, 배포 POM, 라이선스 원문 링크를 [전체 의존성 목록](docs/DEPENDENCIES.md)에 기록했습니다. 디버그 앱 런타임에는 81개, JVM 테스트에는 83개, 계측 테스트에는 82개 외부 모듈이 있으며 목록은 중복됩니다. JVM 테스트의 앱 자체 모듈은 외부 의존성에서 제외합니다. 이 목록은 출시 APK의 확정 목록이 아니며 출시 준비 시 release 구성으로 다시 점검합니다.
+실제로 해석한 103개 고유 모듈의 버전, 배포 POM, 라이선스 원문 링크를 [전체 의존성 목록](docs/DEPENDENCIES.md)에 기록했습니다. 디버그 앱 런타임에는 86개, JVM 테스트에는 88개, 계측 테스트에는 82개 외부 모듈이 있으며 목록은 중복됩니다. Room 2.8.4와 SQLite 2.6.2가 추가되었습니다. JVM 테스트의 앱 자체 모듈은 외부 의존성에서 제외합니다. 이 목록은 출시 APK의 확정 목록이 아니며 출시 준비 시 release 구성으로 다시 점검합니다.
 
 | 구성 | 라이선스 | 출처 |
 | --- | --- | --- |
@@ -26,6 +26,8 @@ AndroidX 라이브러리 배포물의 `META-INF/.../LICENSE.txt`를 확인했습
 | Gradle / Wrapper | 8.14.4 | [Gradle](https://github.com/gradle/gradle), Apache-2.0; Wrapper의 원문 헤더 보존 |
 | Android Gradle Plugin | 8.13.2 | [Android 도구 소스](https://android.googlesource.com/platform/tools/base/), Apache-2.0 |
 | Kotlin Android / Compose compiler plugin | 2.2.21 | [Kotlin](https://github.com/JetBrains/kotlin), Apache-2.0 |
+| Kotlin Symbol Processing | 2.2.21-2.0.5 | [KSP](https://github.com/google/ksp), Apache-2.0 |
+| Room compiler | 2.8.4 | [AndroidX Room 소스](https://android.googlesource.com/platform/frameworks/support/+/androidx-main/room/), Apache-2.0 |
 | Android SDK Platform / Build Tools | 36 / 36.0.0 | [Android SDK 약관](https://developer.android.com/studio/terms); 개발 환경에서만 사용하며 SDK 배포물은 저장소에 포함하지 않음 |
 
 ## 이후 자료 추가 시

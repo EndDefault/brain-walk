@@ -11,17 +11,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 private val MemoryColors = lightColorScheme(
-    primary = Color(0xFF304A68),
+    primary = Color(0xFF173B5E),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFE7ECF2),
     onPrimaryContainer = Color(0xFF20344C),
     secondary = Color(0xFF526170),
-    background = Color(0xFFF6F7F9),
+    background = Color(0xFFFFF9EA),
     onBackground = Color(0xFF202A35),
     surface = Color.White,
     onSurface = Color(0xFF202A35),
     onSurfaceVariant = Color(0xFF525C68),
-    outlineVariant = Color(0xFFCDD3DB),
+    outline = Color(0xFF526273),
+    outlineVariant = Color(0xFFBBC2C8),
 )
 
 private val MemoryTypography = Typography(

@@ -162,4 +162,82 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 
 실행 로그는 `.artifacts/play-verification.log`, `.artifacts/play-small-offline-tests.txt`, 최종 문자열 정리 후 빌드는 `.artifacts/play-final-build.log`입니다. 작은 화면/오프라인 실행은 설치된 테스트 APK로 `am instrument -w`를 실행했습니다.
 
-현재 모든 플레이는 초기 조건(20초·3초·보기 4개·풀이 무제한)입니다. 타이머 경계는 JVM에서 검증했으나 제한시간이 있는 실제 UI, 6/9/12/16개 보기의 기기 사용성, TalkBack·시니어 실물 평가와 API 26/36 실행은 미검증입니다. **Room 저장·프로세스 종료 후 복구·영구 누적 기록·적응 난이도·밴딧은 미구현**입니다. 앱 종료 시 현재 진행과 결과가 사라지는 제한을 홈과 결과에 표시합니다.
+당시 모든 플레이는 초기 조건(20초·3초·보기 4개·풀이 무제한)이었습니다. 타이머 경계는 JVM에서 검증했으나 제한시간이 있는 실제 UI, 6/9/12/16개 보기의 기기 사용성, TalkBack·시니어 실물 평가와 API 26/36 실행은 미검증입니다. 이 단계에는 Room 저장·프로세스 복구가 없었습니다. 아래 저장 기능 검증이 이후 결과입니다.
+
+## 2026-09-23 · 클래식 메뉴와 학습 기록 영구 저장
+
+대상: `feature/classic-home-persistent-records`, 기준 develop의 PR #3 병합 커밋 `5388a69`. 기존 Windows/Corretto 21/Medium_Tablet API 34 환경을 사용했습니다.
+
+| 검증 | 결과 |
+| --- | --- |
+| JVM 엔진·사이클 | **45개 통과**, 실패·건너뜀 0 |
+| 태블릿 계측 테스트 | **13개 통과**, 실패 0: Room 7 + UI 6 |
+| 360×800dp·글자 200%·Wi-Fi/데이터 OFF | UI **6개 통과**, 실패 0 |
+| 최종 앱·계측 APK 빌드 | 통과 |
+| 최종 Lint | 오류 0, 버전 권고 경고 **14**, 미사용 리소스 경고 0 |
+| 의존성/라이선스 | 고유 **103개**, 앱 86·JVM 88·계측 82, 미확인 라이선스 메타데이터 0 |
+| 실제 앱 강제 종료/재실행 | 완료 문제·정답·현재 슬롯 보존 및 새 문제로 이어하기 확인 |
+
+### 저장 검증
+
+실제 파일 기반 Room DB를 닫고 다시 여는 테스트를 사용했습니다. 인메모리 DB 복원으로 대신하지 않았습니다.
+
+1. 오답→정답의 선택 내역/250ms·750ms 응답 시간/1,200ms 노출 시간 보존. 다음 문항 도중 DB를 닫고 단조 시각이 달라진 환경에서 재개해 완료 1문항 유지, 미완료 문항 무효, 같은 조건의 새 UUID·대상 확인.
+2. 10문항 완료의 동시 재저장 5회에도 완료 종합 수 1, 유효 문제 10, 진행 포인터 해제. 재시작 후 다음 4문항 배정 유형은 그림.
+3. 진행 종료는 STOPPED로 남기고 완료 문항을 유지. 종합 완료 수는 증가하지 않음.
+4. 색·그림·숫자 콘텐츠/보기 순서/생성 버전과 7초·9.5초·16보기·15초 풀이 조건 왕복 보존.
+5. 중복 문제 ID로 생성 실패 시 사이클·슬롯·진행 포인터 모두 롤백.
+6. 복구로 무효화한 문항을 이전 프로세스가 덮어쓸 수 없음.
+7. 연습을 저장소에 넣으려는 요청 거부, 성적 행 없음.
+
+에뮬레이터에서도 정식 게임 첫 문항을 정답 처리하고 두 번째 기억 화면에서 `am force-stop`한 뒤 앱을 다시 실행했습니다. 학습 선택의 **10문제 중 1문제 완료**, 이어하기의 **2/10·중단 안내**, 새 문제로 계속하기의 **2/10·새 그림**을 확인했습니다. 학습 현황에는 기존 검증 게임 10문제와 새 완료 문제 1개를 합한 **11문제·첫 정답 11/11**이 남았습니다.
+
+### 메뉴·접근성 검증
+
+메인 클릭 가능 메뉴가 정확히 세 개인지, 학습 현황 빈 상태/설명 이동·Activity 재생성, 학습 선택의 네 시작 경로, 혼합 10문제 완료와 기록 화면 반영, 오답 비활성화·중단 재개, 연습 플레이 후 정식 DB가 비어 있는지를 검증했습니다.
+
+작은 화면에서는 최종 APK로 같은 UI 테스트 6개를 실행했습니다. 글자 확대를 제한하지 않고 줄바꿈·스크롤로 모든 버튼에 접근합니다. 종료 후 화면 크기·글자·Wi-Fi·모바일 데이터 설정을 원래대로 복원했습니다. 최초 셸 호출의 인수 오류는 테스트 시작 전 발생했으며 사용자 번호 0과 인용한 클래스 목록을 지정한 재실행에서 통과했습니다.
+
+![클래식 메인](screenshots/classic-home-tablet.png)
+![학습 선택](screenshots/classic-learn-tablet.png)
+
+[학습 현황](screenshots/records-tablet.png) · [작은 화면·글자 200%](screenshots/classic-home-largefont.png)
+
+### 재현·보고서·남은 범위
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:connectedDebugAndroidTest --console=plain
+```
+
+- 전체 검증: `.artifacts/classic-records-verification.log`, 표준 Gradle JVM/계측 보고서.
+- 미사용 문자열 정리 후 빌드·JVM·Lint: `.artifacts/classic-records-final-build.log`.
+- 작은 화면·오프라인: `.artifacts/records-small-offline-tests.txt`의 `OK (6 tests)`.
+- Lint 경고: OldTargetApi 1, AndroidGradlePluginVersion 2, GradleDependency 8, NewerVersionAvailable 3. 버전 권고를 숨기지 않았습니다.
+- Room 스키마 v1 JSON을 커밋합니다. 첫 DB 버전이므로 이전 DB에서의 마이그레이션은 없으며, 향후 변경 시 기존 데이터를 보존하는 마이그레이션 테스트가 필요합니다.
+
+저장 공간 부족·손상된 DB 오류 대화상자의 실제 기기 오류 주입, 실물 Galaxy Tab A9+·TalkBack·시니어 사용성·API 26/36 실행은 아직 검증하지 않았습니다. 앱 삭제/데이터 지우기는 이번 보존 범위가 아닙니다. AI 묶음·적응 난이도·밴딧 학습값은 아직 미구현이며 현재는 후속 학습에 필요한 원본만 영구 보존합니다.
+
+## 2026-09-23 · 중앙 게임 화면과 하단 고정 진행 버튼
+
+사용자 후속 요청으로 열려 있는 PR #4에 게임 화면 배치를 개선했습니다. 정답 문구·큰 대상·안내·카운트다운을 가운데 배치하고 진행 버튼을 본문 스크롤에서 분리했습니다. 이동 버튼은 상단 일시정지 메뉴로 옮겼습니다.
+
+- `testDebugUnitTest`: 기존 엔진·사이클 **45개 통과**.
+- `connectedDebugAndroidTest`: **15개 통과**(Room 7 + UI 8), 실패 0.
+- 360×800dp·글자 200%·Wi-Fi/데이터 OFF에서 UI **8개 통과**, 실패 0. 고정 버튼·중앙 정답·일시정지 재생성도 같은 조건에서 통과했습니다. 검증 후 2560×1600px·글자 100%·원래 네트워크 설정으로 복원했습니다.
+- `assembleDebug`, 테스트 APK 생성, `lintDebug` 통과. Lint 오류 0·기존 버전 권고 14개 유지.
+- 본문을 스크롤해도 다음 버튼의 화면 좌표가 같고, 대상 아래에 위치하는지 검증했습니다. 정답 문구의 중심과 본문 영역 중심이 일치하는지도 검사했습니다.
+- 오답 시 남은 기회가 2번으로 바뀌고 선택 보기는 비활성화되며 추가 오답 문구가 없는지 확인했습니다.
+- 3초 대기 중 일시정지 → 3.5초 대기 후에도 보기/카운트다운/대상이 표시되지 않음 → Activity 재생성 후 메뉴 유지 → 새 문제로 재개해 1/10 유지와 새 문제 행 생성 → 홈 이동·저장 진행 유지까지 검증했습니다.
+- 이미 맞힌 결과에서 일시정지 후 계속하면 같은 정답 화면으로 돌아오는 것도 확인했습니다. 기본 10문제 완료와 Room 기록 검증을 함께 통과했습니다.
+
+태블릿의 실제 그림 연습에서 기억→3초 대기→오답 1회→정답→일시정지 화면을 캡처하고 검토했습니다. 기억 그림을 키우고, 정답 화면에서는 그림을 반복하지 않으며, 다음 버튼이 하단에 유지됩니다.
+
+![중앙 기억 화면과 고정 다음 버튼](screenshots/focused-memory-tablet.png)
+![큰 카운트다운](screenshots/focused-countdown-tablet.png)
+![중앙 정답 표시](screenshots/focused-correct-tablet.png)
+
+[오답 선택 후 보기](screenshots/focused-options-tablet.png) · [일시정지 메뉴](screenshots/focused-pause-tablet.png)
+
+[작은 화면·글자 200% 기억 화면](screenshots/focused-memory-largefont.png) · [큰 카운트다운](screenshots/focused-countdown-largefont.png) · [일시정지 메뉴](screenshots/focused-pause-largefont.png)
+
+전체 실행 로그는 `.artifacts/focused-play-verification.log`, 작은 화면 로그는 `.artifacts/focused-small-offline-tests.txt`입니다. 게임 엔진·Room 스키마·의존성 버전은 이번 화면 수정에서 변경하지 않았습니다. 실물 기기·TalkBack 등 앞 절의 미검증 범위는 그대로 남습니다.

@@ -46,7 +46,7 @@ internal fun MemoryItemView(item: MemoryItem, modifier: Modifier = Modifier, lar
     val ink = MaterialTheme.colorScheme.onSurface
     Box(modifier.clearAndSetSemantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         if (item is NumberItem) {
-            Text(item.value.toString(), fontSize = if (large) 64.sp else 40.sp, fontWeight = FontWeight.Bold)
+            Text(item.value.toString(), fontSize = if (large) 96.sp else 40.sp, fontWeight = FontWeight.Bold)
         } else Canvas(Modifier.fillMaxSize()) {
             val side = minOf(size.width, size.height)
             withTransform({
