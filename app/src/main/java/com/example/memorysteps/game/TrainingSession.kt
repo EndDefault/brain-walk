@@ -9,6 +9,17 @@ enum class TrainingMode(val singleType: GameType?) {
 
 data class CompletedProblem(val type: GameType, val result: RoundResult)
 
+data class SessionCheckpoint(
+    val sessionId: String,
+    val mode: TrainingMode,
+    val plan: List<GameType>,
+    val index: Int,
+    val problem: MemoryProblem,
+    val result: RoundResult,
+    val completed: List<CompletedProblem>,
+    val showSummary: Boolean,
+)
+
 class TrainingSnapshot internal constructor(
     val sessionId: String,
     val mode: TrainingMode,
@@ -17,6 +28,7 @@ class TrainingSnapshot internal constructor(
     val questionNumber: Int,
     val completed: List<CompletedProblem>,
     val showSummary: Boolean,
+    val practice: Boolean,
 ) {
     val total: Int get() = 10
     val complete: Boolean get() = completed.size == total
@@ -24,7 +36,7 @@ class TrainingSnapshot internal constructor(
     val finalCorrect: Int get() = completed.count { it.result.finalCorrect }
 }
 
-/** In-memory cycle. Durable records and adaptive conditions belong to the later repository. */
+/** Pure game state. The repository checkpoints formal training before publishing it. */
 class TrainingSession(
     private val mode: TrainingMode,
     completedMixedCycles: Int,
@@ -32,22 +44,36 @@ class TrainingSession(
     private val generator: ProblemGenerator = ProblemGenerator(),
     random: Random = Random.Default,
     private val conditions: GameConditions = GameConditions(),
+    private val practice: Boolean = false,
+    private val restored: SessionCheckpoint? = null,
 ) {
-    private val sessionId = UUID.randomUUID().toString()
+    private val sessionId = restored?.sessionId ?: UUID.randomUUID().toString()
     val plan: List<GameType> = frozenCopy(
-        mode.singleType?.let { type -> List(10) { type } } ?: run {
+        restored?.plan ?: mode.singleType?.let { type -> List(10) { type } } ?: run {
             require(completedMixedCycles >= 0)
             val extraType = GameType.entries[completedMixedCycles % 3]
             GameType.entries.flatMap { type -> List(if (type == extraType) 4 else 3) { type } }.shuffled(random)
         },
     )
-    private var index = 0
-    private var round = GameRound(generator.generate(plan[index], conditions), clock)
-    private val completed = mutableListOf<CompletedProblem>()
-    private var showSummary = false
+    private var index = restored?.index ?: 0
+    private var round = restored?.let { GameRound.restore(it.problem, clock, it.result) }
+        ?: GameRound(generator.generate(plan[index], conditions), clock)
+    private val completed = restored?.completed?.toMutableList() ?: mutableListOf()
+    private var showSummary = restored?.showSummary ?: false
+
+    init {
+        require(plan.size == 10 && index in plan.indices)
+        require(restored == null || (restored.mode == mode && restored.problem.type == plan[index]))
+    }
+
+    companion object {
+        fun restore(checkpoint: SessionCheckpoint, clock: MonotonicClock) = TrainingSession(
+            checkpoint.mode, 0, clock, conditions = checkpoint.problem.conditions, restored = checkpoint,
+        )
+    }
 
     val state: TrainingSnapshot get() = TrainingSnapshot(
-        sessionId, mode, round.problem, round.state, index + 1, frozenCopy(completed), showSummary,
+        sessionId, mode, round.problem, round.state, index + 1, frozenCopy(completed), showSummary, practice,
     )
 
     fun memoryShown(id: String) = update(id) { onMemoryShown() }

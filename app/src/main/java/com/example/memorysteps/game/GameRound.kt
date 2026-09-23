@@ -6,6 +6,19 @@ package com.example.memorysteps.game
  * Call display callbacks only after their content is actually visible.
  */
 class GameRound(val problem: MemoryProblem, private val clock: MonotonicClock) {
+    companion object {
+        /** Restore only terminal data; never resume a timer from another process. */
+        fun restore(problem: MemoryProblem, clock: MonotonicClock, result: RoundResult): GameRound {
+            require(result.problemId == problem.id)
+            return GameRound(problem, clock).apply {
+                this.result = result
+                phase = RoundPhase.FINISHED
+                actualMemoryMs = result.actualMemoryMs
+                usedNextButton = result.usedNextButton
+                choices.addAll(result.choices)
+            }
+        }
+    }
     private var phase = RoundPhase.READY
     private var lastObservedMs: Long? = null
     private var memoryStartedMs: Long? = null
