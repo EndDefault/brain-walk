@@ -2,29 +2,71 @@
 <resources>
     <string name="app_name">MemorySteps</string>
     <string name="brand_name">기억 산책</string>
-    <string name="brand_caption">MemorySteps</string>
-    <string name="home_title">오늘도,\n차근차근 기억 산책</string>
-    <string name="home_description">색, 그림, 숫자를 살펴보며\n내 속도에 맞춰 시작해 보세요.</string>
+    <string name="home_title">학습 현황</string>
     <string name="guide_button">이용 안내 보기</string>
     <string name="home_button">홈으로 돌아가기</string>
-    <string name="training_heading">이렇게 기억해요</string>
+    <string name="training_heading">훈련 시작</string>
     <string name="color_title">색 기억하기</string>
-    <string name="color_description">보았던 색을 찾아요</string>
     <string name="picture_title">그림 기억하기</string>
-    <string name="picture_description">보았던 그림을 찾아요</string>
     <string name="number_title">숫자 기억하기</string>
-    <string name="number_description">보았던 숫자를 찾아요</string>
-    <string name="record_heading">나의 학습 기록</string>
-    <string name="empty_record">첫 훈련을 시작하면 기록이 표시됩니다</string>
-    <string name="setup_status">훈련 기능을 준비하고 있어요. 먼저 이용 안내를 살펴보세요.</string>
+    <string name="empty_record">아직 완료한 훈련이 없습니다.</string>
     <string name="guide_title">천천히 살펴보고, 기억해요</string>
     <string name="guide_description">한 번의 훈련은 10문제예요. 처음에는 다음 순서로 진행해요.</string>
-    <string name="step_number">%1$d</string>
     <string name="remember_title">대상을 살펴봐요</string>
     <string name="remember_description">처음에는 20초 동안 보여 드려요. 다 기억했다면 ‘다음’을 눌러도 좋아요.</string>
     <string name="wait_title">잠깐 기다려요</string>
     <string name="wait_description">대상이 사라지고 3초 동안 기다려요.</string>
     <string name="solve_title">같은 것을 찾아요</string>
     <string name="solve_description">4개의 보기에서 골라요. 기회는 최대 3번이고, 처음에는 시간제한이 없어요.</string>
-    <string name="encouragement">서두르지 않아도 괜찮아요. 편안한 속도로 함께해요.</string>
+    <string name="mixed_title">종합 훈련 시작</string>
+    <string name="mixed_name">종합 훈련</string>
+    <string name="mixed_description">색·그림·숫자를 섞어서 10문제를 연습합니다.</string>
+    <string name="single_description">한 가지 유형을 골라 10문제를 연습할 수도 있습니다.</string>
+    <string name="session_notice">이번 훈련의 결과는 앱을 켜 둔 동안 확인할 수 있습니다. 앱을 완전히 종료하면 진행 내용과 결과가 사라집니다.</string>
+    <string name="progress_saved">%1$s · %2$d / 10문제 완료</string>
+    <string name="continue_training">이어서 훈련하기</string>
+    <string name="end_training">진행 중인 훈련 끝내기</string>
+    <string name="confirm_end">진행 중인 훈련을 끝낼까요?</string>
+    <string name="confirm_end_description">지금까지 푼 문제의 결과가 사라집니다.</string>
+    <string name="end_confirm">훈련 끝내기</string>
+    <string name="cancel">취소</string>
+    <string name="last_result">이번 훈련 · 10문제 중 %1$d개를 첫 선택에 맞혔습니다.</string>
+    <string name="question_progress">%1$d / 10문제 · %2$s</string>
+    <string name="type_color">색</string>
+    <string name="type_picture">그림</string>
+    <string name="type_number">숫자</string>
+    <string name="memory_prompt">대상을 기억하세요</string>
+    <string name="next_button">다음</string>
+    <string name="seconds_left">남은 시간 %1$d초</string>
+    <string name="wait_prompt">잠시 기다리세요</string>
+    <string name="solve_prompt">기억한 것과 같은 보기를 고르세요</string>
+    <string name="attempts_left">남은 기회 %1$d번</string>
+    <string name="wrong_feedback">다른 보기를 골라보세요.</string>
+    <string name="wrong_choice">오답 · 다시 선택할 수 없음</string>
+    <string name="choice_number">보기 %1$d</string>
+    <string name="unlimited">시간제한 없음</string>
+    <string name="correct_result">정답입니다</string>
+    <string name="wrong_result">이번 문제를 마쳤습니다</string>
+    <string name="timeout_result">풀이 시간이 끝났습니다</string>
+    <string name="answer_label">기억했던 대상</string>
+    <string name="next_question">다음 문제</string>
+    <string name="show_results">훈련 결과 보기</string>
+    <string name="interrupted_title">훈련을 잠시 멈췄습니다</string>
+    <string name="interrupted_description">중단된 문제는 점수에 포함하지 않습니다. 같은 단계의 새 문제로 이어갑니다.</string>
+    <string name="resume_question">새 문제로 계속하기</string>
+    <string name="summary_title">훈련 결과</string>
+    <string name="summary_first">첫 선택 정답 %1$d / 10</string>
+    <string name="summary_final">3번의 기회 안에 맞힌 문제 %1$d / 10</string>
+    <string name="summary_type">%1$s · 첫 선택 정답 %2$d / %3$d</string>
+    <string name="number_item">숫자 %1$d</string>
+    <string name="color_pair">왼쪽 %1$s, 오른쪽 %2$s</string>
+    <string-array name="color_names">
+        <item>파랑</item><item>주황</item><item>초록</item><item>보라</item>
+    </string-array>
+    <string-array name="picture_names">
+        <item>원</item><item>사각형</item><item>삼각형</item><item>별</item>
+        <item>하트</item><item>달</item><item>꽃</item><item>집</item>
+        <item>나무</item><item>물고기</item><item>사과</item><item>컵</item>
+        <item>열쇠</item><item>우산</item><item>종</item><item>자동차</item>
+    </string-array>
 </resources>
