@@ -324,3 +324,23 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 [글자 200%의 공통 난이도](screenshots/combined-records-largefont.png)
 
 화면은 합성 검증 기록입니다. 기존 실물 기기/장기간 AI 효과 검증 한계는 유지합니다. 이번 변경은 유형별 참고 성적 표시를 삭제하지 않으며, 난이도 판단과 적용 조건을 한 개로 통합합니다.
+
+## 2026-09-23 · 풀이 시간 제한과 보기 증가 연속 검증
+
+풀이 단계의 난이도가 바뀌지 않는다는 제보에 따라, 규칙 계산뿐 아니라 실제 답변 저장부터 다음 게임 출제까지 이어지는 회귀 테스트 2개를 추가했습니다. 앱 동작과 난이도 규칙은 변경하지 않았습니다.
+
+- JVM 67개 통과, 디버그 앱/계측 APK 빌드 통과.
+- `AdaptiveLearningTest` 9개 통과(기존 7개 + 연속 진행 2개). 전체 Android/UI 테스트를 다시 실행한 결과는 아닙니다.
+- BANDIT와 COMPARISON 각각 초기 상태에서 26게임/260문제를 첫 선택 정답으로 완료했습니다. 난이도 행을 직접 주입하지 않고 실제 게임 엔진과 저장소를 사용했습니다.
+- 첫 게임의 기억 시간 20→5초 이후 풀이 조절이 선택돼 제한 없음→40→35→30→25→20초→보기 증가/제한 해제로 이어짐을 확인했습니다. 보기 4→6→9→12→16개를 모두 거치며 마지막 게임의 실제 16개 보기 생성까지 검증했습니다.
+- 매 게임 사이 DB를 닫고 다시 열어 조건이 보존되는지, 세 유형 모두 같은 조건을 쓰는지, 9문제까지는 판단/조건이 고정되고 10번째 완료 후 변경되는지 확인했습니다. 보상은 AI 모드에서만 25회, 비교 모드에서는 0회였습니다.
+
+사용 중인 앱과 다른 `com.example.memorysteps.difficultyvalidation` 패키지에서 실행했습니다. 개인 플레이 DB를 초기화하거나 현재 게임을 완료 처리하지 않았으며, 이 테스트에 UI 조작은 포함되지 않습니다. 이전 검증에서 개발 앱에 비교 모드가 남아 있음을 확인했지만, 진행 중 게임을 중단시키거나 저장값을 임의로 바꾸지 않았습니다. 비교 모드에서도 풀이 제한/보기 증가 자체는 동작합니다.
+
+격리 실행 설정은 `tools/isolated-tests.init.gradle`입니다. 재현 시 다음 명령으로 대상 클래스를 지정합니다.
+
+```powershell
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.memorysteps.AdaptiveLearningTest'
+```
+
+이번에는 해당 설정으로 앱과 계측 APK를 빌드하고, APK 패키지/계측 대상이 격리 이름인지 확인한 뒤 ADB로 설치 및 위 클래스만 실행했습니다. 로컬 로그: `.artifacts/solve-progression-build.log`, `.artifacts/solve-progression-device-tests.log`.

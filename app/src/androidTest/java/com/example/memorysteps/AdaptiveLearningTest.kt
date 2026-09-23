@@ -126,6 +126,64 @@ class AdaptiveLearningTest {
         assertEquals(3, ai.observeArms().first().size)
     }
 
+    @Test fun repeatedPerfectMixedGamesApplySolveLimitsAndEveryOptionStepInBanditMode() = runBlocking {
+        assertSolveProgression(AlgorithmMode.BANDIT)
+    }
+
+    @Test fun repeatedPerfectMixedGamesApplySolveLimitsAndEveryOptionStepInComparisonMode() = runBlocking {
+        assertSolveProgression(AlgorithmMode.COMPARISON)
+    }
+
+    private suspend fun assertSolveProgression(mode: AlgorithmMode) {
+        repository.changeAlgorithm(mode, now)
+        complete(start())
+        assertEquals(5_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
+        var expected = GameConditions(memoryLimitMs = 5_000)
+        var completedGames = 1
+
+        // Exercise real answers -> persisted bundle -> chosen action -> next
+        // mixed game's generated options, without seeding difficulty states.
+        for (options in listOf(4, 6, 9, 12)) {
+            assertEquals(options, expected.optionCount)
+            for (limit in listOf<Long?>(40_000, 35_000, 30_000, 25_000, 20_000, null)) {
+                reopen()
+                val game = start()
+                assertEquals(GameType.entries.toSet(), game.plan.toSet())
+                assertTrue(game.slotConditions.all { it == expected })
+                repeat(10) { index ->
+                    assertEquals(expected, game.state.problem.conditions)
+                    assertEquals(options, game.state.problem.options.size)
+                    solve(game)
+                    if (index < 9) {
+                        assertEquals(completedGames, ai.decisionCount())
+                        assertEquals(expected, ai.difficulty(LearningScope.COMBINED)!!.conditions())
+                        game.advance(game.state.problem.id); save(game)
+                    }
+                }
+                completedGames++
+                expected = if (limit != null) expected.copy(solveLimitMs = limit)
+                else expected.copy(optionCount = when (options) { 4 -> 6; 6 -> 9; 9 -> 12; else -> 16 }, solveLimitMs = null)
+                val decision = ai.observeDecisions().first().first()
+                assertEquals(mode.name, decision.source)
+                assertEquals("ADJUST_SOLVE", decision.action)
+                assertEquals("APPLIED", decision.status)
+                assertEquals(expected, ai.difficulty(LearningScope.COMBINED)!!.conditions())
+                assertEquals(completedGames, ai.decisionCount())
+            }
+        }
+        reopen()
+        val finalGame = start()
+        assertEquals(16, expected.optionCount)
+        assertNull(expected.solveLimitMs)
+        assertTrue(finalGame.slotConditions.all { it == expected })
+        repeat(10) { index ->
+            assertEquals(16, finalGame.state.problem.options.size)
+            solve(finalGame)
+            if (index < 9) { finalGame.advance(finalGame.state.problem.id); save(finalGame) }
+        }
+        assertEquals(if (mode == AlgorithmMode.BANDIT) 25 else 0, ai.rewardCount())
+    }
+
     @Test fun transactionFailureRollsBackAnswerRewardDecisionAndCycleCompletionTogether() = runBlocking {
         complete(start())
         val next = start()
