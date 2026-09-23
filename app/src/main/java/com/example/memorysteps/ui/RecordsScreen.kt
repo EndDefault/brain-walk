@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, history: List<CycleHistory>,
-    profiles: List<LearningProfile>, onDiagnostics: (() -> Unit)?, onHome: () -> Unit) {
+    profiles: List<LearningProfile>, activeGame: Boolean, onDiagnostics: (() -> Unit)?, onHome: () -> Unit) {
     Page {
         PageTitle(stringResource(R.string.home_title))
         Text(stringResource(R.string.completed_games, overview.completedCycles), style = MaterialTheme.typography.titleLarge)
@@ -34,10 +34,10 @@ fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, histo
         PageTitle(stringResource(R.string.adaptive_heading))
         Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium)
         profiles.forEach { profile ->
-            Text(typeName(GameType.valueOf(profile.difficulty.type)), style = MaterialTheme.typography.titleLarge)
             Text(conditionsText(profile.difficulty.conditions()))
             Text(if (profile.pending) stringResource(R.string.adaptive_pending)
-                else stringResource(R.string.adaptive_collected, profile.collected))
+                else if (activeGame) stringResource(R.string.adaptive_collected, profile.collected)
+                else stringResource(R.string.adaptive_next_game))
         }
         HorizontalDivider()
         PageTitle(stringResource(R.string.recent_records))

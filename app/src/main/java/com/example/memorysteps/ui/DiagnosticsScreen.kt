@@ -11,7 +11,6 @@ import com.example.memorysteps.R
 import com.example.memorysteps.data.AdaptiveCodec
 import com.example.memorysteps.difficulty.AlgorithmMode
 import com.example.memorysteps.game.GameConditions
-import com.example.memorysteps.game.GameType
 import java.util.Locale
 import org.json.JSONArray
 
@@ -42,16 +41,16 @@ internal fun DiagnosticsScreen(model: TrainingViewModel, enabled: Boolean, onBac
         }
         ActionButton(stringResource(R.string.ai_back), onBack, primary = false)
         HorizontalDivider()
-        PageTitle("유형별 학습값")
+        PageTitle("통합 학습값")
         arms.forEach { arm ->
-            Text("${typeName(GameType.valueOf(arm.type))} · ${arm.action}", style = MaterialTheme.typography.titleLarge)
+            Text(arm.action, style = MaterialTheme.typography.titleLarge)
             Text("적용 경험 ${arm.hasEverApplied} · 유효 횟수 ${decimal(arm.effectiveCount)} · 보상 합계 ${decimal(arm.rewardSum)}")
         }
         HorizontalDivider()
         PageTitle("최근 판단 30개")
-        if (decisions.isEmpty()) Text("유형별 기록 10개가 모이면 판단이 표시됩니다.")
+        if (decisions.isEmpty()) Text("종합 게임의 10문제를 마치면 판단이 표시됩니다.")
         decisions.forEach { decision ->
-            Text("${typeName(GameType.valueOf(decision.type))} · ${decision.action}", style = MaterialTheme.typography.titleLarge)
+            Text("종합 게임 · ${decision.action}", style = MaterialTheme.typography.titleLarge)
             Text("${decision.source} · ${decision.status} · 보상 ${decision.rewardStatus}")
             Text("선택 이유: ${decision.reason}")
             bundles.firstOrNull { it.id == decision.inputBundleId }?.let { bundle ->

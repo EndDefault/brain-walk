@@ -54,7 +54,7 @@ fun MemoryStepsApp() {
                 onHome = { navController.popBackStack(HOME, false) })
         }
         composable(RECORDS) {
-            RecordsScreen(overview, types, history, profiles,
+            RecordsScreen(overview, types, history, profiles, activeGame = active != null,
                 onDiagnostics = if (BuildConfig.DEBUG) ({ navController.navigate(DIAGNOSTICS) }) else null,
                 onHome = { navController.popBackStack(HOME, false) })
         }

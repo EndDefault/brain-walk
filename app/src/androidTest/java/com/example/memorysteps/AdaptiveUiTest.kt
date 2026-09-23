@@ -29,7 +29,7 @@ class AdaptiveUiTest {
         runBlocking(Dispatchers.IO) {
             val repo = LearningRepository(db)
             var now = 100L
-            val game = repo.startFormal(TrainingMode.COLOR, MonotonicClock { now }, "ui-seed", now)
+            val game = repo.startFormal(TrainingMode.MIXED, MonotonicClock { now }, "ui-seed", now)
             suspend fun save() = repo.save(game.state, "ui-seed", now)
             repeat(10) { index ->
                 val p = game.state.problem
@@ -45,6 +45,8 @@ class AdaptiveUiTest {
         click(R.string.home_title)
         val learned = compose.activity.getString(R.string.adaptive_conditions, "5", "3", 4, text(R.string.adaptive_unlimited))
         compose.onNodeWithText(learned).performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText(learned).assertCountEquals(1)
+        compose.onNodeWithText(text(R.string.adaptive_heading)).performScrollTo().assertIsDisplayed()
         compose.activityRule.scenario.recreate()
         compose.onNodeWithText(learned).performScrollTo().assertIsDisplayed()
         screenshot("ai-records")
