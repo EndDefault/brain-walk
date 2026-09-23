@@ -34,6 +34,8 @@
     <string name="memory_prompt">기억하세요</string>
     <string name="next_button">다음</string>
     <string name="seconds_left">남은 시간 %1$d초</string>
+    <string name="remaining_time_label">남은 시간</string>
+    <string name="seconds_value">%1$d초</string>
     <string name="wait_prompt">잠시 기다리세요</string>
     <string name="solve_prompt">기억한 것과 같은 보기를 고르세요</string>
     <string name="attempts_left">남은 기회 %1$d번</string>

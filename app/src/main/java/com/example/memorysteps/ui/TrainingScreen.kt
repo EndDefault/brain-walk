@@ -94,11 +94,12 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                 val viewportHeight = maxHeight
                 val viewportWidth = maxWidth
                 val density = LocalDensity.current
-                val wideControls = maxWidth >= 600.dp && density.fontScale <= 1.3f
+                val wideControls = maxWidth >= 600.dp * density.fontScale && density.fontScale <= 1.3f
                 val timed = state.problem.conditions.solveLimitMs != null
                 val controlHeight = with(density) {
+                    val timerHeight = 122.sp.toDp() + 4.dp
                     52.sp.toDp() + if (wideControls) (if (timed) 80.sp else 42.sp).toDp()
-                    else 42.sp.toDp() + if (timed) 80.sp.toDp() + 16.dp else 0.dp
+                    else 42.sp.toDp() + if (timed) timerHeight + 16.dp else 0.dp
                 }
                 val rows = state.problem.conditions.layout.rows
                 val tileHeight = ((viewportHeight - controlHeight - 64.dp - 16.dp * (rows - 1)) / rows)
@@ -124,10 +125,10 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                                 StageTitle(stringResource(R.string.solve_prompt))
                                 if (wideControls) Row(horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
                                     AttemptsRemaining(state.round.attemptsRemaining)
-                                    state.problem.conditions.solveLimitMs?.let { Countdown(state.round.remainingStageMs ?: it) }
+                                    state.problem.conditions.solveLimitMs?.let { SolveCountdown(state.round.remainingStageMs ?: it, inlineLabel = true) }
                                 } else {
                                     AttemptsRemaining(state.round.attemptsRemaining)
-                                    state.problem.conditions.solveLimitMs?.let { Countdown(state.round.remainingStageMs ?: it) }
+                                    state.problem.conditions.solveLimitMs?.let { SolveCountdown(state.round.remainingStageMs ?: it) }
                                 }
                                 AnswerOptions(state, busy, tileHeight, viewportWidth - 48.dp) { viewModel.answer(id, it) }
                             }
@@ -204,6 +205,26 @@ private fun Countdown(milliseconds: Long, prominent: Boolean = false) {
         .clearAndSetSemantics { contentDescription = description },
         fontSize = if (prominent) 160.sp else 64.sp, lineHeight = if (prominent) 190.sp else 80.sp,
         fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun SolveCountdown(milliseconds: Long, inlineLabel: Boolean = false) {
+    val seconds = (milliseconds + 999) / 1000
+    val description = stringResource(R.string.seconds_left, seconds)
+    val modifier = Modifier.testTag("stage-countdown").clearAndSetSemantics { contentDescription = description }
+    val label: @Composable () -> Unit = {
+        Text(stringResource(R.string.remaining_time_label), fontSize = 30.sp, lineHeight = 42.sp,
+            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    }
+    val value: @Composable () -> Unit = {
+        Text(stringResource(R.string.seconds_value, seconds), fontSize = 64.sp, lineHeight = 80.sp,
+            fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+    }
+    if (inlineLabel) Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        label(); value()
+    } else Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        label(); value()
+    }
 }
 
 @Composable

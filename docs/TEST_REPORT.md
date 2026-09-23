@@ -344,3 +344,11 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 ```
 
 이번에는 해당 설정으로 앱과 계측 APK를 빌드하고, APK 패키지/계측 대상이 격리 이름인지 확인한 뒤 ADB로 설치 및 위 클래스만 실행했습니다. 로컬 로그: `.artifacts/solve-progression-build.log`, `.artifacts/solve-progression-device-tests.log`.
+
+## 2026-09-23 · 풀이 화면의 남은 시간 표시
+
+풀이 제한이 있는 문제에 `남은 시간` 제목과 `15초`처럼 초 단위를 표시했습니다. 넓은 화면에서는 한 줄, 좁은 화면/큰 글자에서는 위아래로 배치하며 시간 값은 기존 큰 글자를 유지합니다. 기억 화면과 대기 카운트다운, 난이도 계산은 변경하지 않았습니다.
+
+디버그 앱/계측 APK 빌드와 Lint(오류 0)를 통과했습니다. 격리 패키지에서 기존 `sixteenOptionsAndTimedSolveRemainReachableWithLargeText` 테스트 1개를 실행해 통과했고, 2560×1600·320dpi·글자 100% 화면에서 제목/초 단위와 16개 보기 전체가 표시되는 캡처를 검토했습니다. 이번 변경에서 작은 화면/글자 확대 실기 검증을 다시 수행하지는 않았습니다. 로그는 `.artifacts/labeled-timer-build.log`, `.artifacts/labeled-timer-ui.log`, `.artifacts/labeled-timer-normal-build.log`입니다.
+
+![남은 시간 제목과 초 단위가 표시된 풀이 화면](screenshots/labeled-timer-tablet.png)
