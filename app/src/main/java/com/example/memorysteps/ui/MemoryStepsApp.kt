@@ -56,7 +56,9 @@ fun MemoryStepsApp() {
         }
         composable(TRAINING) {
             val current = training
-            if (current != null) TrainingScreen(current, trainingModel, onHome = { navController.popBackStack(LEARN, false) })
+            if (current != null) TrainingScreen(current, trainingModel,
+                onBack = { navController.popBackStack(LEARN, false) },
+                onHome = { navController.popBackStack(HOME, false) })
             else LaunchedEffect(Unit) { navController.popBackStack(HOME, false) }
         }
     }

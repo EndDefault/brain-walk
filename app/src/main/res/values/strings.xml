@@ -31,16 +31,14 @@
     <string name="type_color">색</string>
     <string name="type_picture">그림</string>
     <string name="type_number">숫자</string>
-    <string name="memory_prompt">대상을 기억하세요</string>
+    <string name="memory_prompt">기억하세요</string>
     <string name="next_button">다음</string>
     <string name="seconds_left">남은 시간 %1$d초</string>
     <string name="wait_prompt">잠시 기다리세요</string>
     <string name="solve_prompt">기억한 것과 같은 보기를 고르세요</string>
     <string name="attempts_left">남은 기회 %1$d번</string>
-    <string name="wrong_feedback">다른 보기를 골라보세요.</string>
     <string name="wrong_choice">오답 · 다시 선택할 수 없음</string>
     <string name="choice_number">보기 %1$d</string>
-    <string name="unlimited">시간제한 없음</string>
     <string name="correct_result">정답입니다</string>
     <string name="wrong_result">이번 문제를 마쳤습니다</string>
     <string name="timeout_result">풀이 시간이 끝났습니다</string>
@@ -67,7 +65,11 @@
     </string-array>
     <string name="game_caption">기억력 게임</string>
     <string name="learn_menu">학습하기</string>
-    <string name="learn_return">학습 선택으로</string>
+    <string name="pause_button">일시정지</string>
+    <string name="pause_title">잠시 멈춤</string>
+    <string name="pause_continue">계속하기</string>
+    <string name="pause_back">뒤로가기</string>
+    <string name="pause_notice">완료한 기록은 그대로 남습니다. 풀던 문제는 같은 단계의 새 문제로 이어갑니다.</string>
     <string name="practice_heading">연습하기</string>
     <string name="practice_notice">연습은 학습 현황과 AI 학습에 포함되지 않습니다.</string>
     <string name="practice_label">연습 중</string>
