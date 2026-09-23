@@ -1,6 +1,6 @@
 # 의존성 목록
 
-Gradle이 실제 선택한 직접·전이 의존성입니다. 앱 및 계측 테스트의 런타임 구성을 기준으로 하며 빌드 도구는 THIRD_PARTY_NOTICES.md에서 별도로 관리합니다.
+Gradle이 실제 선택한 직접·전이 의존성입니다. 앱·로컬 JVM 테스트·계측 테스트의 런타임 구성을 기준으로 하며 빌드 도구는 THIRD_PARTY_NOTICES.md에서 별도로 관리합니다.
 
 재생성: `gradlew -I tools/dependency-inventory.init.gradle :app:dependencyInventory` 실행 후 `pwsh -File tools/Write-DependencyInventory.ps1`을 실행합니다. POM 라이선스 메타데이터를 읽으며 원문 고지사항을 대체하지 않습니다.
 

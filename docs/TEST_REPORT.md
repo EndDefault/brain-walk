@@ -84,3 +84,40 @@ pwsh -File tools/Write-DependencyInventory.ps1
 - 앱 소스·리소스·의존성은 변경하지 않았으므로 이번 문서 PR에서 빌드와 기기 테스트를 재실행하지 않습니다. 위 첫 PR의 결과는 이전 코드에 대한 실행 기록입니다.
 - RULE_EXAMPLES.md는 구현할 테스트의 입력·기대값입니다. **난이도·AI 로직 테스트가 통과했다는 뜻이 아닙니다.** 해당 엔진 PR에서 실제 테스트를 추가합니다.
 - UI_DIRECTION.md는 선택한 디자인의 구현 기준이며, 이번 PR에서 화면 디자인이나 종합 훈련 플레이 기능을 완료했다고 보고하지 않습니다.
+
+## 2026-09-23 · 게임 엔진
+
+대상: `feature/game-engine`, 기준 develop의 PR #2 병합 커밋 `dd00acd`. Windows 11, Corretto 21.0.10, 기존 고정 Gradle/AGP/Kotlin/SDK에서 실행했습니다.
+
+| 검증 | 결과 |
+| --- | --- |
+| `:app:testDebugUnitTest` | **38개 통과, 실패·건너뜀 0**: 생성 8, 모델 검증 7, 진행/판정 23 |
+| 생성 조합 | 세 유형 × 다섯 보기 수 × 100시드 = 1,500개 문제에서 정답 하나·중복 없는 보기 확인 |
+| `:app:assembleDebug` | 통과, 디버그 APK 생성 |
+| `:app:lintDebug` | 통과: 오류 0, 기존 버전 권고 경고 8 |
+| 의존성/라이선스 추출 | 앱 81·JVM 테스트 83·계측 테스트 82 외부 모듈, 중복 제거 98개·미확인 메타데이터 0 |
+
+진행 테스트에는 1·2·3회차 정답, 세 번 오답, 중복 오답 무시, 첫 선택/누적 시간 분리, 무제한 풀이, 보기 렌더링 지연, 14,999ms 정답과 15,000ms 이상 시간 초과, 각 단계의 중단, 완료 결과 불변성, 읽기 전용 스냅샷을 포함했습니다. 가짜 단조 시계로 실제 대기 없이 경계를 검증합니다.
+
+### 해결한 실행 환경 문제
+
+첫 JVM 테스트 실행은 테스트 본문에 도달하지 못하고 클래스 세 개 모두 `ClassNotFoundException`으로 실패했습니다. 컴파일된 클래스는 존재했으며 Gradle의 테스트 인수 파일은 UTF-8, Java 실행기의 시스템 문자셋은 MS949였습니다. `file.encoding=COMPAT`로 인수 파일과 시스템 인코딩을 맞춘 뒤 38개가 통과했고, 해당 설정을 저장한 상태로 테스트·빌드·Lint를 다시 통과했습니다. [Gradle의 비 ASCII 경로 테스트 이슈](https://github.com/gradle/gradle/issues/30391)와 [JDK 인코딩 호환 옵션](https://docs.oracle.com/en/java/javase/21/migrate/preparing-migration.html)을 참고했습니다.
+
+이 설정은 JDK 21에서 검증했습니다. OS 문자셋 자체가 폴더 이름을 표현하지 못하는 환경까지 검증한 것은 아닙니다. Java 소스는 UTF-8을 명시하고 Kotlin 소스도 UTF-8을 유지합니다.
+
+### 재현
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --console=plain
+.\gradlew.bat -I tools/dependency-inventory.init.gradle :app:dependencyInventory
+pwsh -File tools/Write-DependencyInventory.ps1
+```
+
+- JVM 보고서: `app/build/reports/tests/testDebugUnitTest/index.html`
+- Lint 보고서: `app/build/reports/lint-results-debug.html`
+- APK: `app/build/outputs/apk/debug/app-debug.apk`
+- 로컬 실행 기록: `.artifacts/game-engine-verification.log`
+
+### 이번 범위에서 실행하지 않은 검증
+
+UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임 플레이·화면 표시 시점·백그라운드 복귀 테스트는 실행하지 않았습니다. 기존 홈/안내 UI는 변경하지 않아 계측 테스트도 재실행하지 않았습니다. 위 첫 PR의 기기 실행 결과는 과거 코드의 기록입니다. 실제 그림 렌더링, 색 구분 사용성, 16개 보기 접근성, 저장·프로세스 복구, 4/3/3 사이클, 난이도/밴딧 검증은 해당 후속 PR에 남습니다.
