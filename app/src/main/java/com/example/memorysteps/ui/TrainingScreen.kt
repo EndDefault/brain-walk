@@ -21,6 +21,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.memorysteps.R
 import com.example.memorysteps.game.GameType
@@ -52,6 +54,7 @@ internal fun typeName(type: GameType): String = stringResource(when (type) {
 
 @Composable
 fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome: () -> Unit) {
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     // An outgoing navigation entry must not pause a newly started cycle.
     val sessionId = remember(owner) { state.sessionId }
@@ -83,8 +86,9 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
     // Reset scrolling for each problem/phase so content never begins offscreen.
     key(id, phase, state.showSummary) {
         Page {
+            if (state.practice) Text(stringResource(R.string.practice_label), style = MaterialTheme.typography.titleLarge)
             if (state.showSummary) {
-                PageTitle(stringResource(R.string.summary_title))
+                PageTitle(stringResource(if (state.practice) R.string.practice_summary else R.string.summary_title))
                 Text(stringResource(R.string.summary_first, state.firstCorrect), style = MaterialTheme.typography.titleLarge)
                 Text(stringResource(R.string.summary_final, state.finalCorrect))
                 HorizontalDivider()
@@ -93,7 +97,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
                     if (results.isNotEmpty()) Text(stringResource(R.string.summary_type, typeName(type),
                         results.count { it.result.firstChoiceCorrect }, results.size))
                 }
-                Text(stringResource(R.string.session_notice), style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(if (state.practice) R.string.practice_notice else R.string.session_notice), style = MaterialTheme.typography.bodyMedium)
             } else {
                 Text(stringResource(R.string.question_progress, state.questionNumber, typeName(state.problem.type)),
                     modifier = Modifier.testTag("question-progress"), style = MaterialTheme.typography.titleLarge)
@@ -104,7 +108,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
                         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             MemoryItemView(state.problem.target, Modifier.size(180.dp).testTag("memory-target"), large = true)
                         }
-                        if (phase == RoundPhase.MEMORY) ActionButton(stringResource(R.string.next_button), { viewModel.next(id) })
+                        if (phase == RoundPhase.MEMORY) ActionButton(stringResource(R.string.next_button), { viewModel.next(id) }, enabled = !busy)
                     }
                     RoundPhase.WAIT -> {
                         PageTitle(stringResource(R.string.wait_prompt))
@@ -124,7 +128,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
                                     val wrong = option.id in state.round.disabledOptionIds
                                     Surface(
                                         onClick = { viewModel.answer(id, option.id) },
-                                        enabled = phase == RoundPhase.SOLVE && !wrong,
+                                        enabled = phase == RoundPhase.SOLVE && !wrong && !busy,
                                         modifier = Modifier.weight(1f).heightIn(min = 150.dp).testTag("option-${option.id}"),
                                         shape = RoundedCornerShape(8.dp),
                                         color = if (wrong) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
@@ -147,7 +151,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
                         if (result.outcome == RoundOutcome.INTERRUPTED) {
                             PageTitle(stringResource(R.string.interrupted_title))
                             Text(stringResource(R.string.interrupted_description))
-                            ActionButton(stringResource(R.string.resume_question), { viewModel.resume(id) })
+                            ActionButton(stringResource(R.string.resume_question), { viewModel.resume(id) }, enabled = !busy)
                         } else {
                             PageTitle(stringResource(when (result.outcome) {
                                 RoundOutcome.CORRECT -> R.string.correct_result
@@ -159,12 +163,12 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onHome
                                 MemoryItemView(state.problem.target, Modifier.size(160.dp), large = true)
                             }
                             ActionButton(stringResource(if (state.complete) R.string.show_results else R.string.next_question),
-                                { viewModel.advance(id) })
+                                { viewModel.advance(id) }, enabled = !busy)
                         }
                     }
                 }
             }
-            ActionButton(stringResource(R.string.home_button), { viewModel.pause(sessionId); onHome() }, primary = false)
+            ActionButton(stringResource(R.string.learn_return), { viewModel.pause(sessionId); onHome() }, primary = false, enabled = !busy)
         }
     }
 }

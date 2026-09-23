@@ -17,23 +17,30 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.example.memorysteps.data.LearningDatabase
+import kotlinx.coroutines.runBlocking
 
 @RunWith(AndroidJUnit4::class)
 class TrainingFlowTest {
-    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = 0) val records = FreshLearningRecords()
+    @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
 
     @Test fun allHomeStartButtonsOpenPlayableMemoryScreen() {
-        listOf(R.string.mixed_title, R.string.color_title, R.string.picture_title, R.string.number_title).forEach { title ->
+        click(R.string.learn_menu)
+        listOf(R.string.mixed_title, R.string.type_color, R.string.type_picture, R.string.type_number).forEach { title ->
             click(title)
             waitFor(R.string.next_button)
             compose.onNodeWithTag("memory-target").performScrollTo().assertIsDisplayed()
             pressBack()
-            click(R.string.end_training)
-            compose.onNodeWithText(compose.activity.getString(R.string.end_confirm)).performClick()
+            if (title == R.string.mixed_title) {
+                click(R.string.end_training)
+                compose.onNodeWithText(compose.activity.getString(R.string.end_confirm)).performClick()
+            }
         }
     }
 
     @Test fun mixedTrainingCompletesTenQuestionsAndShowsRealResult() {
+        click(R.string.learn_menu)
         click(R.string.mixed_title)
         repeat(10) { index ->
             waitFor(R.string.next_button)
@@ -47,12 +54,15 @@ class TrainingFlowTest {
         }
         waitFor(R.string.summary_title)
         compose.onNodeWithText(compose.activity.getString(R.string.summary_first, 10)).assertIsDisplayed()
+        click(R.string.learn_return)
         click(R.string.home_button)
-        compose.onNodeWithText(compose.activity.getString(R.string.last_result, 10)).performScrollTo().assertIsDisplayed()
+        click(R.string.home_title)
+        compose.onNodeWithText(compose.activity.getString(R.string.record_first, 10, 10)).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun wrongOptionDisablesAndRecreationKeepsCompletedProgress() {
-        click(R.string.number_title)
+        click(R.string.learn_menu)
+        click(R.string.mixed_title)
         waitFor(R.string.next_button)
         val answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
             .config[SemanticsProperties.ContentDescription].single()
@@ -73,12 +83,26 @@ class TrainingFlowTest {
         waitFor(R.string.next_button)
         val progress = compose.onNodeWithTag("question-progress").fetchSemanticsNode()
             .config[SemanticsProperties.Text].single().text
-        assertEquals(compose.activity.getString(R.string.question_progress, 2, compose.activity.getString(R.string.type_number)), progress)
+        org.junit.Assert.assertTrue(progress.startsWith("2 / 10"))
         pressBack()
         click(R.string.continue_training)
         waitFor(R.string.interrupted_title)
         click(R.string.resume_question)
         waitFor(R.string.next_button)
+    }
+
+    @Test fun practiceDoesNotCreateLearningRecords() {
+        click(R.string.learn_menu)
+        click(R.string.type_number)
+        waitFor(R.string.next_button)
+        val answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
+            .config[SemanticsProperties.ContentDescription].single()
+        click(R.string.next_button)
+        waitFor(R.string.solve_prompt)
+        compose.onNodeWithContentDescription(answer).performScrollTo().performClick()
+        waitFor(R.string.correct_result)
+        assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().problemCount() })
+        assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().cycleCount() })
     }
 
     private fun click(id: Int) = compose.onNodeWithText(compose.activity.getString(id)).performScrollTo().performClick()
