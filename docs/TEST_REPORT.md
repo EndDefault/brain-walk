@@ -241,3 +241,114 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 [작은 화면·글자 200% 기억 화면](screenshots/focused-memory-largefont.png) · [큰 카운트다운](screenshots/focused-countdown-largefont.png) · [일시정지 메뉴](screenshots/focused-pause-largefont.png)
 
 전체 실행 로그는 `.artifacts/focused-play-verification.log`, 작은 화면 로그는 `.artifacts/focused-small-offline-tests.txt`입니다. 게임 엔진·Room 스키마·의존성 버전은 이번 화면 수정에서 변경하지 않았습니다. 실물 기기·TalkBack 등 앞 절의 미검증 범위는 그대로 남습니다.
+
+## 2026-09-23 · 오프라인 AI와 적응 난이도
+
+대상: `feature/adaptive-learning`, 앱 0.2.0, Room v2. PR #4 병합 develop `cfe1687`에서 시작했습니다. 기존 API 34 태블릿 에뮬레이터에서 검증했으며 의존성을 추가하지 않았습니다.
+
+### 결과
+
+| 검증 | 결과 |
+| --- | --- |
+| JVM 테스트 | 67개 통과: 기존 게임/사이클 45 + 난이도 15 + 밴딧 7 |
+| Android 계측 | 25개 항목 확인: 기존 저장 7 + AI 저장 7 + v1 마이그레이션 1 + 화면 10 |
+| 디버그·배포용 빌드 | assembleDebug / assembleRelease 통과. 배포 APK는 서명·스토어 게시하지 않음 |
+| Lint | 오류 0, 경고 14. 기존 버전 권고: OldTargetApi 1, AGP 2, GradleDependency 8, NewerVersionAvailable 3 |
+| 작은 화면·글자 200%·오프라인 | 360×800dp, Wi-Fi/데이터 OFF에서 UI 10개 항목 확인. 설정 복원 확인 |
+| 강제 종료 후 실행 | UI에서 완료 10문제·첫 정답 10/10·색 기억 5초·다른 유형 20초 유지 확인 |
+| 화면 검토 | 태블릿 16개 보기와 풀이 시간 전체 표시. 큰 글자에서는 가로·세로 스크롤로 처음/마지막 보기 접근 |
+
+전체 계측 최초 실행은 24/25 통과했습니다. 16개 보기 테스트가 색 유형만 준비해 무작위 첫 유형이 다른 경우 실패하므로, 세 유형 모두 같은 테스트 조건을 준비하도록 수정한 뒤 해당 UI 클래스 2/2를 재검증했습니다. 작은 화면에서는 기존 UI 8개와 AI 현황 테스트가 통과했고, 16개 보기의 자동 스크롤은 가까운 가로 부모만 움직였습니다. Compose 테스트 소스를 확인해 세로/가로 컨테이너를 각각 움직이도록 보완한 뒤 AI UI 2/2를 통과했습니다. 앱 난이도 계산이나 저장 실패를 숨기거나 테스트를 제외하지 않았습니다.
+
+### 검증한 연결
+
+- 종합 3회/30문제에서 유형별 세 묶음 완성 → 게임 종료에만 각각 20초→5초 적용. 새 파일 연결에서도 다음 종합 조건과 4/3/3 회전 유지.
+- 색 8개를 모은 뒤 종합에서 2개로 묶음 완성 → 재시작 후에도 대기 결정 유지 → 남은 색 2개는 기록 전용 → 종합 종료에만 조건 적용.
+- 첫 판단 자체에 보상 없음 → 적용 이후 다음 10개에서 첫 정답 8개면 보상 1 → 같은 완료의 동시 콜백 5회·DB 재개방에도 보상/판단 중복 없음.
+- 판단 삽입에 SQLite 오류 주입 → 마지막 정답·보상·학습값·게임 완료 동시 롤백 → 저장된 문제에서 재개 후 한 번만 반영.
+- 복원은 축별 최신 단축 잔량만 사용하고 부분 복원 반올림/내림·40초 제한 해제·대기 우선 규칙 검증. DB에서는 부분/전체 복원과 재시작·중복 콜백을 검증.
+- 밴딧/비교 전환은 진행 중 게임에서 차단. 새 epoch에서 미완성 묶음·보상 대기 분리, 비교 결과 밴딧 학습 제외.
+- v1 스키마 JSON으로 실제 파일 DB와 완료 14개+진행 1개를 생성 → v2 자동 마이그레이션 → 콘텐츠·선택·성적·진행 보존 → 최근 10개 최초 보정과 대기 적용 → 재개방 시 중복 판단/소급 보상 없음.
+- 규칙 경계 C=0~10, 밀리초 평균/반올림, 엄격한 W 비교, 보기 단계·15초 전환, 분모 0, 미시도 탐색/동점/무보상 경험, 할인 보상을 순수 테스트로 확인.
+- 학습 현황의 실제 DB 난이도, Activity 재생성, 개발 진단 전환 제한, 기존 정식 10문제 완료/연습 제외/일시정지/고정 버튼 회귀 확인.
+
+### 재현과 로그
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease :app:lintDebug
+.\gradlew.bat :app:connectedDebugAndroidTest
+# 특정 클래스 재검증: PowerShell에서는 -P 인자 전체를 인용
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.memorysteps.AdaptiveUiTest'
+```
+
+로컬 로그: `.artifacts/adaptive-full-verification.log`, `adaptive-ui-tests.log`, `adaptive-small-offline-tests.txt`, `adaptive-small-ui-tests.txt`, `adaptive-migration-test.log`, `adaptive-build-lint.log`, `adaptive-final-lint.log`. 생성 보고서는 `app/build/reports/`에 있습니다. 디버그 APK SHA-256: `AC4971213C8722ED2563AE01680364B0339C1030B9DC6E9B3A015268B16C5C2F`.
+
+![재시작 후 현재 난이도](screenshots/focused-ai-current-difficulty.png)
+![태블릿의 16개 보기와 풀이 시간](screenshots/ai-sixteen-tablet.png)
+
+[개발 진단](screenshots/focused-ai-diagnostics.png) · [글자 200% 보기 스크롤](screenshots/ai-sixteen-largefont.png) · [글자 200% 학습 현황](screenshots/ai-records-largefont.png)
+
+화면 수치는 검증용으로 만든 합성 기록입니다. 작은 화면에서는 모든 보기가 동시에 보이지 않으며 스크롤 중에도 풀이 시간이 진행됩니다. 실물 태블릿·시니어 사용성·TalkBack 전체 흐름·장기간 AI 성능/인지 효과는 이번 자동화 검증으로 확인한 범위가 아닙니다. 조건별 성과 비교·효과음/환경 설정은 후속 범위입니다.
+
+## 2026-09-23 · 게임 1회 합산과 공통 난이도 변경
+
+사용자 확정 `합산 판단 + 공통 난이도`를 적용한 앱 0.3.0 / Room v3입니다. 앞 절의 유형별 첫 조정/이전 기록 보정 정책은 이 버전에서 대체되었습니다.
+
+| 검증 | 결과 |
+| --- | --- |
+| JVM | 67개 통과 |
+| 전체 Android 계측 | 26개 통과, 실패/오류 0 |
+| 디버그 빌드·Lint | 통과. Lint 오류 0·기존 버전 경고 14 |
+| 작은 화면·오프라인 | 360×800dp, 글자 200%, 네트워크 OFF에서 변경된 AI 화면 테스트 2개 통과. 설정 복원 |
+
+확인한 변경 동작:
+
+- 첫 종합 게임 9개까지 난이도/판단 불변, 10번째 완료 시 세 유형 10개를 한 묶음으로 집계해 판단 1개 생성. 다음 게임의 모든 슬롯에 같은 5초 기억 조건 적용.
+- 8문제를 완료하고 명시적으로 끝낸 게임은 원본 성적을 유지하며 묶음을 닫음. 새 게임 2개와 섞어서 판단하지 않음. 새 게임 10개 완료 후 한 번만 판단.
+- 같은 게임을 중단/재개하면 기존 4문제와 나머지 6문제로 원래 묶음을 완료. 다음 온전한 게임의 결과로 이전 선택을 한 번만 보상.
+- 동시 완료 콜백 5회에도 보상/판단 중복 없음, 판단 삽입 오류 시 답변·보상·게임 완료가 함께 롤백.
+- 실제 v1→v3, v2→v3 파일 DB 마이그레이션 통과. 과거 콘텐츠/선택/성적/활성 슬롯과 유형별 학습값/복원량 보존. 이전 대기 판단·보상은 분리해 종료.
+- 이전 버전에서 시작한 서로 다른 조건의 게임을 그대로 복구해 남은 6문제를 완료. 성적은 14→20으로 증가하고 통합 정책에는 판단/보상이 발생하지 않음. 그다음 새 게임부터 기본 공통 조건 적용.
+- 공통 난이도 한 개 표시, 재생성 후 유지, 개발 모드 전환 제한과 16개 보기 접근, 기존 메뉴/게임/연습/일시정지 회귀 통과.
+
+재현 명령:
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:connectedDebugAndroidTest :app:lintDebug --console=plain
+```
+
+로그: `.artifacts/combined-verification.log`, `.artifacts/combined-small-ui-tests.txt`. 디버그 APK SHA-256: `0AB118BE0A27FCE8A18E50ED3BA998F40F136A7B95534310BF06732F01D7ACB4`.
+
+![한 게임 결과와 공통 난이도](screenshots/combined-records-tablet.png)
+
+[글자 200%의 공통 난이도](screenshots/combined-records-largefont.png)
+
+화면은 합성 검증 기록입니다. 기존 실물 기기/장기간 AI 효과 검증 한계는 유지합니다. 이번 변경은 유형별 참고 성적 표시를 삭제하지 않으며, 난이도 판단과 적용 조건을 한 개로 통합합니다.
+
+## 2026-09-23 · 풀이 시간 제한과 보기 증가 연속 검증
+
+풀이 단계의 난이도가 바뀌지 않는다는 제보에 따라, 규칙 계산뿐 아니라 실제 답변 저장부터 다음 게임 출제까지 이어지는 회귀 테스트 2개를 추가했습니다. 앱 동작과 난이도 규칙은 변경하지 않았습니다.
+
+- JVM 67개 통과, 디버그 앱/계측 APK 빌드 통과.
+- `AdaptiveLearningTest` 9개 통과(기존 7개 + 연속 진행 2개). 전체 Android/UI 테스트를 다시 실행한 결과는 아닙니다.
+- BANDIT와 COMPARISON 각각 초기 상태에서 26게임/260문제를 첫 선택 정답으로 완료했습니다. 난이도 행을 직접 주입하지 않고 실제 게임 엔진과 저장소를 사용했습니다.
+- 첫 게임의 기억 시간 20→5초 이후 풀이 조절이 선택돼 제한 없음→40→35→30→25→20초→보기 증가/제한 해제로 이어짐을 확인했습니다. 보기 4→6→9→12→16개를 모두 거치며 마지막 게임의 실제 16개 보기 생성까지 검증했습니다.
+- 매 게임 사이 DB를 닫고 다시 열어 조건이 보존되는지, 세 유형 모두 같은 조건을 쓰는지, 9문제까지는 판단/조건이 고정되고 10번째 완료 후 변경되는지 확인했습니다. 보상은 AI 모드에서만 25회, 비교 모드에서는 0회였습니다.
+
+사용 중인 앱과 다른 `com.example.memorysteps.difficultyvalidation` 패키지에서 실행했습니다. 개인 플레이 DB를 초기화하거나 현재 게임을 완료 처리하지 않았으며, 이 테스트에 UI 조작은 포함되지 않습니다. 이전 검증에서 개발 앱에 비교 모드가 남아 있음을 확인했지만, 진행 중 게임을 중단시키거나 저장값을 임의로 바꾸지 않았습니다. 비교 모드에서도 풀이 제한/보기 증가 자체는 동작합니다.
+
+격리 실행 설정은 `tools/isolated-tests.init.gradle`입니다. 재현 시 다음 명령으로 대상 클래스를 지정합니다.
+
+```powershell
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.memorysteps.AdaptiveLearningTest'
+```
+
+이번에는 해당 설정으로 앱과 계측 APK를 빌드하고, APK 패키지/계측 대상이 격리 이름인지 확인한 뒤 ADB로 설치 및 위 클래스만 실행했습니다. 로컬 로그: `.artifacts/solve-progression-build.log`, `.artifacts/solve-progression-device-tests.log`.
+
+## 2026-09-23 · 풀이 화면의 남은 시간 표시
+
+풀이 제한이 있는 문제에 `남은 시간` 제목과 `15초`처럼 초 단위를 표시했습니다. 넓은 화면에서는 한 줄, 좁은 화면/큰 글자에서는 위아래로 배치하며 시간 값은 기존 큰 글자를 유지합니다. 기억 화면과 대기 카운트다운, 난이도 계산은 변경하지 않았습니다.
+
+디버그 앱/계측 APK 빌드와 Lint(오류 0)를 통과했습니다. 격리 패키지에서 기존 `sixteenOptionsAndTimedSolveRemainReachableWithLargeText` 테스트 1개를 실행해 통과했고, 2560×1600·320dpi·글자 100% 화면에서 제목/초 단위와 16개 보기 전체가 표시되는 캡처를 검토했습니다. 이번 변경에서 작은 화면/글자 확대 실기 검증을 다시 수행하지는 않았습니다. 로그는 `.artifacts/labeled-timer-build.log`, `.artifacts/labeled-timer-ui.log`, `.artifacts/labeled-timer-normal-build.log`입니다.
+
+![남은 시간 제목과 초 단위가 표시된 풀이 화면](screenshots/labeled-timer-tablet.png)

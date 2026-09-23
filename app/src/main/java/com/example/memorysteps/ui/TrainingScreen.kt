@@ -2,6 +2,7 @@ package com.example.memorysteps.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,11 +14,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -89,9 +92,21 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
             // Only the stage body scrolls. The primary action never moves with the image.
             BoxWithConstraints(Modifier.weight(1f).widthIn(max = 1100.dp).fillMaxWidth().testTag("training-stage")) {
                 val viewportHeight = maxHeight
+                val viewportWidth = maxWidth
+                val density = LocalDensity.current
+                val wideControls = maxWidth >= 600.dp * density.fontScale && density.fontScale <= 1.3f
+                val timed = state.problem.conditions.solveLimitMs != null
+                val controlHeight = with(density) {
+                    val timerHeight = 122.sp.toDp() + 4.dp
+                    52.sp.toDp() + if (wideControls) (if (timed) 80.sp else 42.sp).toDp()
+                    else 42.sp.toDp() + if (timed) timerHeight + 16.dp else 0.dp
+                }
+                val rows = state.problem.conditions.layout.rows
+                val tileHeight = ((viewportHeight - controlHeight - 64.dp - 16.dp * (rows - 1)) / rows)
+                    .coerceIn(96.dp, 184.dp)
                 val targetSize = minOf(maxWidth - 48.dp, (maxHeight * 0.52f).coerceIn(220.dp, 340.dp))
                 key(id, phase, state.showSummary) {
-                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = viewportHeight)
+                    Column(Modifier.fillMaxWidth().testTag("stage-scroll").verticalScroll(rememberScrollState()).heightIn(min = viewportHeight)
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)) {
                         // Conceal the target/options before the pause transaction completes.
@@ -108,11 +123,14 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                             }
                             phase == RoundPhase.OPTIONS_PENDING || phase == RoundPhase.SOLVE -> {
                                 StageTitle(stringResource(R.string.solve_prompt))
-                                Text(stringResource(R.string.attempts_left, state.round.attemptsRemaining),
-                                    Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                                    fontSize = 30.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                                state.problem.conditions.solveLimitMs?.let { Countdown(state.round.remainingStageMs ?: it) }
-                                AnswerOptions(state, busy) { viewModel.answer(id, it) }
+                                if (wideControls) Row(horizontalArrangement = Arrangement.spacedBy(40.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    AttemptsRemaining(state.round.attemptsRemaining)
+                                    state.problem.conditions.solveLimitMs?.let { SolveCountdown(state.round.remainingStageMs ?: it, inlineLabel = true) }
+                                } else {
+                                    AttemptsRemaining(state.round.attemptsRemaining)
+                                    state.problem.conditions.solveLimitMs?.let { SolveCountdown(state.round.remainingStageMs ?: it) }
+                                }
+                                AnswerOptions(state, busy, tileHeight, viewportWidth - 48.dp) { viewModel.answer(id, it) }
                             }
                             phase == RoundPhase.FINISHED -> {
                                 val result = checkNotNull(state.round.result)
@@ -190,24 +208,58 @@ private fun Countdown(milliseconds: Long, prominent: Boolean = false) {
 }
 
 @Composable
-private fun AnswerOptions(state: TrainingSnapshot, busy: Boolean, onAnswer: (String) -> Unit) {
-    state.problem.options.chunked(state.problem.conditions.layout.columns).forEach { options ->
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            options.forEach { option ->
-                val wrong = option.id in state.round.disabledOptionIds
-                val wrongDescription = stringResource(R.string.wrong_choice)
-                Surface(onClick = { onAnswer(option.id) },
-                    enabled = state.round.phase == RoundPhase.SOLVE && !wrong && !busy,
-                    modifier = Modifier.weight(1f).heightIn(min = 164.dp).testTag("option-${option.id}")
-                        .semantics { if (wrong) stateDescription = wrongDescription },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (wrong) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)) {
-                    Column(Modifier.padding(12.dp).alpha(if (wrong) 0.4f else 1f),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.choice_number, state.problem.options.indexOf(option) + 1),
-                            style = MaterialTheme.typography.bodyMedium)
-                        MemoryItemView(option.item, Modifier.fillMaxWidth().height(124.dp))
+private fun SolveCountdown(milliseconds: Long, inlineLabel: Boolean = false) {
+    val seconds = (milliseconds + 999) / 1000
+    val description = stringResource(R.string.seconds_left, seconds)
+    val modifier = Modifier.testTag("stage-countdown").clearAndSetSemantics { contentDescription = description }
+    val label: @Composable () -> Unit = {
+        Text(stringResource(R.string.remaining_time_label), fontSize = 30.sp, lineHeight = 42.sp,
+            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    }
+    val value: @Composable () -> Unit = {
+        Text(stringResource(R.string.seconds_value, seconds), fontSize = 64.sp, lineHeight = 80.sp,
+            fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary, textAlign = TextAlign.Center)
+    }
+    if (inlineLabel) Row(modifier, horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        label(); value()
+    } else Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        label(); value()
+    }
+}
+
+@Composable
+private fun AttemptsRemaining(count: Int) {
+    Text(stringResource(R.string.attempts_left, count), Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        fontSize = 30.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+}
+
+@Composable
+private fun AnswerOptions(state: TrainingSnapshot, busy: Boolean, tileHeight: Dp, availableWidth: Dp, onAnswer: (String) -> Unit) {
+    val columns = state.problem.conditions.layout.columns
+    val minTileWidth = with(LocalDensity.current) { 64.sp.toDp() + 24.dp }.coerceAtLeast(96.dp)
+    val gridWidth = maxOf(availableWidth, minTileWidth * columns + 16.dp * (columns - 1))
+    val showNumbers = state.problem.conditions.layout.rows == 2
+    Box(Modifier.fillMaxWidth().testTag("options-scroll").horizontalScroll(rememberScrollState())) {
+        Column(Modifier.width(gridWidth), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            state.problem.options.chunked(columns).forEach { options ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    options.forEach { option ->
+                        val wrong = option.id in state.round.disabledOptionIds
+                        val wrongDescription = stringResource(R.string.wrong_choice)
+                        val number = stringResource(R.string.choice_number, state.problem.options.indexOf(option) + 1)
+                        Surface(onClick = { onAnswer(option.id) },
+                            enabled = state.round.phase == RoundPhase.SOLVE && !wrong && !busy,
+                            modifier = Modifier.weight(1f).heightIn(min = if (showNumbers) maxOf(164.dp, tileHeight) else tileHeight).testTag("option-${option.id}")
+                                .semantics { if (wrong) stateDescription = wrongDescription; if (!showNumbers) contentDescription = number },
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (wrong) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)) {
+                            Column(Modifier.padding(8.dp).alpha(if (wrong) 0.4f else 1f),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                if (showNumbers) Text(number, style = MaterialTheme.typography.bodyMedium)
+                                MemoryItemView(option.item, Modifier.fillMaxWidth().height(if (showNumbers) 124.dp else tileHeight - 16.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -228,6 +280,7 @@ private fun TrainingSummary(state: TrainingSnapshot) {
     }
     Text(stringResource(if (state.practice) R.string.practice_notice else R.string.session_notice),
         style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+    if (!state.practice) Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
 }
 
 @Composable

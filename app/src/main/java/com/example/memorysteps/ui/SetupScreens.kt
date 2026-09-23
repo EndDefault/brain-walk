@@ -116,6 +116,7 @@ fun LearnScreen(active: CycleHistory?, enabled: Boolean, onStart: () -> Unit, on
             ActionButton(stringResource(R.string.end_training), onStop, primary = false, enabled = enabled)
         }
         Text(stringResource(R.string.session_notice), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium)
         HorizontalDivider()
         PageTitle(stringResource(R.string.practice_heading))
         Text(stringResource(R.string.practice_notice), style = MaterialTheme.typography.bodyMedium)

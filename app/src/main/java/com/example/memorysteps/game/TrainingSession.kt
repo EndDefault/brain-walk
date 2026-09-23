@@ -18,6 +18,7 @@ data class SessionCheckpoint(
     val result: RoundResult,
     val completed: List<CompletedProblem>,
     val showSummary: Boolean,
+    val slotConditions: List<GameConditions> = List(10) { problem.conditions },
 )
 
 class TrainingSnapshot internal constructor(
@@ -46,6 +47,7 @@ class TrainingSession(
     private val conditions: GameConditions = GameConditions(),
     private val practice: Boolean = false,
     private val restored: SessionCheckpoint? = null,
+    conditionsByType: Map<GameType, GameConditions> = emptyMap(),
 ) {
     private val sessionId = restored?.sessionId ?: UUID.randomUUID().toString()
     val plan: List<GameType> = frozenCopy(
@@ -55,14 +57,16 @@ class TrainingSession(
             GameType.entries.flatMap { type -> List(if (type == extraType) 4 else 3) { type } }.shuffled(random)
         },
     )
+    val slotConditions: List<GameConditions> = frozenCopy(restored?.slotConditions ?: plan.map { conditionsByType[it] ?: conditions })
     private var index = restored?.index ?: 0
     private var round = restored?.let { GameRound.restore(it.problem, clock, it.result) }
-        ?: GameRound(generator.generate(plan[index], conditions), clock)
+        ?: GameRound(generator.generate(plan[index], slotConditions[index]), clock)
     private val completed = restored?.completed?.toMutableList() ?: mutableListOf()
     private var showSummary = restored?.showSummary ?: false
 
     init {
         require(plan.size == 10 && index in plan.indices)
+        require(slotConditions.size == plan.size)
         require(restored == null || (restored.mode == mode && restored.problem.type == plan[index]))
     }
 
@@ -89,14 +93,14 @@ class TrainingSession(
         if (!result.valid) return state
         if (index == plan.lastIndex) showSummary = true else {
             index++
-            round = GameRound(generator.generate(plan[index], conditions), clock)
+            round = GameRound(generator.generate(plan[index], slotConditions[index]), clock)
         }
         return state
     }
 
     fun resume(id: String): TrainingSnapshot {
         if (id == round.problem.id && round.state.result?.outcome == RoundOutcome.INTERRUPTED) {
-            round = GameRound(generator.generate(plan[index], conditions, round.problem.target), clock)
+            round = GameRound(generator.generate(plan[index], slotConditions[index], round.problem.target), clock)
         }
         return state
     }

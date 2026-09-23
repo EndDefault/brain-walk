@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.memorysteps.data.*
 import com.example.memorysteps.game.*
+import com.example.memorysteps.difficulty.AlgorithmMode
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -34,6 +35,11 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
     val typeStatistics = repository.dao.observeTypes().displayState(emptyList())
     val history = repository.dao.observeHistory().displayState(emptyList())
     val active = repository.dao.observeActive().displayState(null)
+    val profiles = repository.adaptiveDao.observeProfiles().displayState(emptyList())
+    val decisions = repository.adaptiveDao.observeDecisions().displayState(emptyList())
+    val bundles = repository.adaptiveDao.observeBundles().displayState(emptyList())
+    val arms = repository.adaptiveDao.observeArms().displayState(emptyList())
+    val algorithmEpoch = repository.adaptiveDao.observeEpoch().displayState(null)
 
     private fun <T> Flow<T>.displayState(initial: T): StateFlow<T> = retryWhen { cause, _ ->
         if (cause is CancellationException) throw cause
@@ -86,9 +92,7 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
                     val saved = repository.recoverActive(at)
                     if (saved != null) session = TrainingSession.restore(saved, clock)
                     else {
-                        val newSession = TrainingSession(mode, repository.dao.completedMixedCycles(), clock)
-                        repository.create(newSession, runToken, at)
-                        session = newSession
+                        session = repository.startFormal(mode, clock, runToken, at)
                     }
                 }
                 mutableState.value = session!!.state
@@ -130,5 +134,12 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
         mutableBusy.value = true
         repository.dao.progress()?.activeCycleId?.let { repository.stop(it, at) }
         if (session?.state?.practice != true) { session = null; mutableState.value = null }
+    }
+
+    fun changeAlgorithm(mode: AlgorithmMode) = enqueue { at ->
+        if (com.example.memorysteps.BuildConfig.DEBUG) {
+            mutableBusy.value = true
+            repository.changeAlgorithm(mode, at)
+        }
     }
 }

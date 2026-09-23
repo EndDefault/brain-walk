@@ -15,6 +15,7 @@ data class CycleEntity(
     val currentSlot: Int,
     val showSummary: Boolean,
     val appVersion: String,
+    @ColumnInfo(defaultValue = "NULL") val modeEpochId: String? = null,
 )
 
 @Entity(tableName = "cycle_slots", primaryKeys = ["cycleId", "slotIndex"],
@@ -25,6 +26,7 @@ data class SlotEntity(
     val memoryMs: Long, val waitMs: Long, val optionCount: Int, val solveMs: Long?,
     val conditionVersion: String = "initial-v1",
     val finalizedProblemId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val appliedDecisionId: String? = null,
 )
 
 @Entity(tableName = "problem_attempts",
@@ -37,7 +39,7 @@ data class ProblemEntity(
     val outcome: String?, val invalidReason: String?, val actualMemoryMs: Long?,
     val usedNextButton: Boolean, val solveElapsedMs: Long?, val firstChoiceMs: Long?,
     val firstCorrect: Boolean, val finalCorrect: Boolean, val attempts: Int,
-    // Raw observations are available for the later algorithm; they have not trained a model yet.
+    // Initial value for incomplete/v1 records; completed formal records are assigned atomically.
     val learningStatus: String = "PENDING_ALGORITHM",
 )
 
@@ -102,10 +104,14 @@ interface LearningDao {
     fun observeActive(): Flow<CycleHistory?>
 }
 
-@Database(entities = [CycleEntity::class, SlotEntity::class, ProblemEntity::class, ChoiceEntity::class, ProgressEntity::class],
-    version = 1, exportSchema = true)
+@Database(entities = [CycleEntity::class, SlotEntity::class, ProblemEntity::class, ChoiceEntity::class, ProgressEntity::class,
+    AlgorithmEpochEntity::class, AlgorithmConfigEntity::class, DifficultyEntity::class, BundleEntity::class,
+    BundleMemberEntity::class, DecisionEntity::class, BanditArmEntity::class, RewardEntity::class,
+    ReductionEntity::class, RestorationEntity::class],
+    version = 3, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
 abstract class LearningDatabase : RoomDatabase() {
     abstract fun learningDao(): LearningDao
+    abstract fun adaptiveDao(): AdaptiveDao
     companion object {
         @Volatile private var instance: LearningDatabase? = null
         fun get(context: Context): LearningDatabase = instance ?: synchronized(this) {

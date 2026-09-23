@@ -1,129 +1,71 @@
 # 데이터 모델
 
-상태: **원본 기록과 진행 복구는 Room v1로 구현했습니다.** 아래 첫 절은 실제 구현이며, 이후 AI 관련 엔티티와 트랜잭션은 후속 설계 계약입니다. 기준은 [SPEC.md](SPEC.md) 7~8·12·16절입니다.
+Room v3의 실제 구현입니다. 기준은 [SPEC.md](SPEC.md), 학습 규칙은 [AI_DESIGN.md](AI_DESIGN.md)에 있습니다. 한 기기에 한 사용자이며 `memory-steps.db`를 사용합니다. `app/schemas/com.example.memorysteps.data.LearningDatabase/1.json`~`3.json`을 보존합니다.
 
-## 구현된 저장소 v1
+## 게임과 공통 학습
 
-`LearningDatabase`의 `memory-steps.db`는 다음 다섯 테이블을 사용합니다. 생성 스키마는 `app/schemas/com.example.memorysteps.data.LearningDatabase/1.json`에 보존합니다.
+화면의 종합 게임 한 회가 AI 학습 묶음 하나입니다. 게임을 시작할 때 공통 조건을 조회해 색·그림·숫자 10개 슬롯에 동일하게 고정합니다. `learning_bundles.cycleId`는 UNIQUE이며, 묶음에 넣는 문항의 cycleId와 slotIndex를 검사해 다른 게임의 부분 기록을 합치지 않습니다.
 
-| 테이블 | 저장 내용 |
+AI 테이블의 기존 type 열은 학습 범위 키로 사용합니다. 신규 AI 데이터는 COMBINED 하나이며 공통 난이도 행 1개, 행동별 밴딧 값 3개를 둡니다. 이전 COLOR/PICTURE/NUMBER AI 행은 보관합니다. 문제/슬롯의 type은 실제 소재 유형을 계속 보존하므로 유형별 성적을 참고할 수 있습니다.
+
+## 테이블
+
+| 테이블 | 실제 키·내용 |
 | --- | --- |
-| training_cycles | UUID·모드·생성/완료 날짜·앱 버전·4/3/3 순환 위치·현재 슬롯·진행/완료/종료 상태 |
-| cycle_slots | 순서·유형·기억/대기/보기 수/풀이 제한·조건 버전·유효 완료 문제 연결 |
-| problem_attempts | 슬롯별 교체 순번·실행 토큰·생성 버전·실제 대상/보기 순서 JSON·노출/풀이/첫 선택 시간·정오·시도 수·무효 사유 |
-| choice_attempts | 문제별 시도 순번·보기 ID·정오·누적 풀이 시간·단조 시각·날짜용 시각 |
-| training_progress | 진행 중인 사이클 ID 한 개 |
+| training_cycles | UUID PK. MIXED/단일 유형 모드·날짜·앱 버전·순환 위치·현재 슬롯·진행/완료/종료 상태·modeEpochId |
+| cycle_slots | (cycleId, slotIndex) PK. 문제 유형·조건 스냅샷·조건 버전·유효 완료 문항·적용 결정 |
+| problem_attempts | UUID PK. 슬롯/교체 순번·runToken·대상/보기 순서 JSON·생성 버전·실제 시간·정오·시도·무효 사유·학습 포함 상태 |
+| choice_attempts | (problemId, attemptIndex) PK, (problemId, optionId) UNIQUE. 선택·정오·누적 시간·단조/날짜 시각 |
+| training_progress | singleton=1. 현재 진행 사이클 ID |
+| algorithm_epochs | UUID PK. BANDIT/COMPARISON과 시작/종료 시각 |
+| algorithm_config | singleton=1. 현재 epochId와 learningScope=COMBINED |
+| difficulty_states | type PK. 공통 조건·conditionVersion·appliedDecisionId |
+| learning_bundles | UUID PK, nullable cycleId UNIQUE. 범위·epoch·조건 전체·생성 버전 조합·이전 결정·상태·합산 통계·출처 |
+| bundle_members | problemId PK, (bundleId, ordinal) UNIQUE. 문제/묶음 FK. 한 문제를 한 묶음에만 연결 |
+| ai_decisions | UUID PK, inputBundleId UNIQUE. 버전·후보/점수·행동·이유·전후 조건·복원 계획·적용/보상 상태 |
+| bandit_arms | (type, action, algorithmVersion) PK. 적용 경험·할인 유효 횟수·보상 합계 |
+| reward_receipts | decisionId PK, bundleId UNIQUE. 다음 완료 게임의 첫 정답 수·보상·적용 시각 |
+| reduction_history | 증가 정수 PK. 범위·MEMORY/SOLVE·단축 전후 값·남은 단축량·ACTIVE/RESTORED/CLOSED |
+| restoration_events | (decisionId, reductionId) PK. 실제 복원량과 중복 방지 |
 
-문제 표시 전에 사이클·10개 슬롯·문제 내용을 저장합니다. 답변·중단·다음 문제·사이클 완료는 Repository 트랜잭션으로 반영하고, 성공한 뒤 화면에 결과를 공개합니다. 저장/읽기 실패 시 진행을 막고 재시도하면 마지막 커밋 상태를 복원합니다. 결과를 저장하지 못한 채 정상 완료로 표시하지 않습니다.
+SQL 제약은 생성 스키마를 따릅니다. 나머지 참조 일관성은 Repository의 같은 트랜잭션에서 검사합니다. 풀이 제한 해제 시 활성 SOLVE 이력을 CLOSED로 종료해 이전 보기 단계의 단축량을 재사용하지 않습니다.
 
-이미 확정된 문항은 변경하지 않고, 고유 키와 조건부 슬롯 완료 처리로 중복 정답·중복 완료를 막습니다. 완료 종합 사이클 수는 별도 증가 값 대신 `COMPLETED AND MIXED` 행 수에서 구하므로 재시작과 완료 콜백 재실행에도 4/3/3 순환이 유지됩니다.
+## 기록과 시간
 
-재시작 시 남아 있는 ACTIVE 문항은 INVALID로 보존합니다. 완료 문항과 현재 순서는 복구하고, 중단 문항만 같은 유형·조건의 새 대상/UUID로 교체합니다. 이전 단조 시각으로 새 경과 시간을 계산하지 않습니다. 사용자가 진행을 끝내도 사이클을 STOPPED로 남기고 완료 문항은 통계에 유지합니다.
+시간은 정수 밀리초이며 풀이 제한 없음은 null입니다. 날짜용 벽시계와 판정용 단조 시계를 구분합니다. 실제 대상·보기 순서를 JSON에 보존하며, 이어하기는 현재 난이도로 과거 조건을 추정하지 않고 저장된 슬롯 스냅샷을 사용합니다. 업그레이드 전에 시작한 게임의 서로 다른 유형별 조건도 그대로 복원합니다.
 
-연습은 메모리에서만 실행하고 정식 기록에 넣지 않습니다. 유효 원본의 `learningStatus=PENDING_ALGORITHM`, 무효 문항은 `EXCLUDED_INVALID`입니다. **학습 묶음·난이도·밴딧 학습값은 아직 없으며 저장된 원본이 이미 AI를 학습시켰다는 뜻이 아닙니다.** 향후 실제 묶음 배정과 학습 여부를 마이그레이션으로 연결합니다.
+통계에는 C와 M/A/W의 합계·개수를 저장합니다. 조건·후보·복원 계획은 AdaptiveCodec으로 직렬화하고 무한 UCB 점수는 문자열 INFINITY로 저장합니다. 세 유형의 생성 버전을 조합한 문자열과 개별 문제 생성 버전을 모두 확인합니다.
 
-첫 DB 버전이므로 이전 DB에서 옮기는 마이그레이션은 없습니다. 파괴적 fallback은 사용하지 않으며 이후 스키마 변경에는 보존 마이그레이션과 테스트를 추가해야 합니다. 종전 메모리 전용 버전에서 이미 종료되어 사라진 기록은 복원할 수 없습니다.
-
-## 후속 AI 통합 설계 계약
-
-| 데이터 | 책임 |
-| --- | --- |
-| 문제 기록 | 문제 ID·유형·생성 버전·조건 전체·선택 내역·실제 노출/풀이 시간·정오/시도/시간 초과/무효 여부 |
-| 화면 사이클 | 사용자에게 보이는 10문제·훈련 모드·혼합 4/3/3 순환·진행/완료 상태 |
-| 유형별 학습 묶음 | 같은 유형·조건의 유효 10문제·AI 학습 포함 여부·완료 상태 |
-| 난이도 상태 | 유형별 기억 시간·대기 시간·선택지 수·nullable 풀이 제한 |
-| 복원 이력 | 단축 전후 값·미복원 잔량·선택지 단계·복원 이벤트 |
-| AI 결정 | 허용 후보·선택 행동·선택 모드·적용 대기/적용 상태·변경 전후 조건·다음 묶음 연결 |
-| 밴딧 학습값 | 유형/행동별 선택 경험·할인 유효 횟수·누적 보상·마지막 갱신 시각 |
-| 설정(DataStore) | 안내·효과음·개발 비교 모드 등 |
-
-## 식별자와 관계
-
-한 기기에 한 사용자입니다. ID는 충돌을 피할 수 있는 문자열 UUID로 발급하고, 문제 표시 전에 영속화합니다. 순서·중복 방지는 벽시계 대신 명시적인 순번과 고유 제약으로 처리합니다.
-
-| 엔티티 | 키·관계 | 주요 필드·제약 |
+| learningStatus | 사용자 성적 | AI 처리 |
 | --- | --- | --- |
-| TrainingCycle | PK cycleId | trainingMode=MIXED/SINGLE, nullable singleType, modeEpochId, status=IN_PROGRESS/COMPLETED, createdAt, completedAt, mixedRotationIndex |
-| CycleSlot | PK (cycleId, slotIndex), FK cycleId | slotIndex 0~9, type, 조건 스냅샷, conditionVersion, generatorVersion, nullable finalizedProblemId, nullable appliedDecisionId |
-| ProblemAttempt | PK problemId, FK slot | runToken, target/options/order payload, generatedAt, phase, status=ACTIVE/COMPLETED/INVALID, invalidReason, actualMemoryMs, usedNextButton, firstChoiceMs, solveElapsedMs, attemptsCount, firstCorrect, finalCorrect, timedOut, algorithmMode, 학습 포함 사유 |
-| ChoiceAttempt | PK (problemId, attemptIndex), FK problemId | optionId, correct, elapsedSinceSolveStartMs, wallClockAt. attemptIndex 1~3, UNIQUE(problemId, optionId) |
-| LearningBundle | PK bundleId, FK modeEpochId | type, conditionVersion와 전체 조건, generatorVersion, status=OPEN/COMPLETED/CLOSED_BY_MODE_CHANGE, nullable sourceDecisionId, C/M/A/W와 계산 원본 합계·개수 |
-| BundleMember | PK (bundleId, ordinal), FK bundleId/problemId | ordinal 0~9, UNIQUE(problemId). 한 문제를 두 묶음에 넣지 않음 |
-| DifficultyState | PK type | 현재 조건, conditionVersion, nullable pendingDecisionId, nullable appliedDecisionId, solveHistoryEpoch |
-| DifficultyDecision | PK decisionId, UNIQUE(inputBundleId) | type, modeEpochId, algorithmVersion, source=BANDIT/FIXED/COMPARISON, action, candidate snapshots와 점수, before/after, status=PENDING/APPLIED/CANCELLED_BY_MODE_CHANGE, timestamps |
-| RestorationEntry | PK entryId, FK decisionId | type, axis=MEMORY/SOLVE, sequence, before/after, remainingReductionMs, solveHistoryEpoch, status=ACTIVE/RESTORED/CLOSED |
-| RestorationEvent | PK eventId, UNIQUE(decisionId, entryId) | actualRestoredMs. 같은 복원 결정을 같은 이력에 두 번 반영하지 않음 |
-| BanditState | PK (type, algorithmVersion, action) | hasEverApplied, effectiveCount, rewardSum, updatedAt |
-| RewardReceipt | PK decisionId, UNIQUE(bundleId), FK decisionId/bundleId | reward, p, appliedAt. 보상 멱등성의 기준 |
-| DecisionOutcome | PK decisionId, nullable UNIQUE(bundleId), FK decisionId/bundleId | 보상 연결 상태=WAITING/REWARDED/CANCELLED_BY_MODE_CHANGE. 다음 묶음 생성 전 bundleId는 null. 비교/고정 결정은 보상 연결을 만들지 않음 |
-| AlgorithmEpoch | PK modeEpochId | algorithmMode=BANDIT/COMPARISON, openedAt, closedAt |
-| TrainingProgress | 고정 단일행 | nullable activeCycleId, completedMixedCycleCount, 현재 modeEpochId |
+| INCLUDED | 포함 | 해당 게임 묶음에 포함. 완성된 묶음만 학습 |
+| EXCLUDED_INVALID | 제외 | 중단 등 무효 문항 |
+| LEGACY_RECORD_ONLY | 포함 | 과거 원본 보관, 통합 학습 제외 |
+| LEGACY_SCOPE_RECORD_ONLY | 포함 | 업그레이드 전에 시작한 게임의 남은 유효 문항 |
+| AFTER_BUNDLE_COMPLETE | 포함 | v2의 기록 전용 상태를 보관. 신규 생성하지 않음 |
+| EXCLUDED_TRAINING_MODE | 포함 | 저장 API로 만든 단일 유형 정식 기록. 통합 학습 제외 |
+| PENDING_ALGORITHM | 완료된 경우 포함 | 미완료/v1 원본 초기 값. 유효 완료 트랜잭션에서 배정 |
 
-`CycleSlot.finalizedProblemId`는 해당 슬롯의 **완료된 유효 문항 하나**만 가리킵니다. 같은 슬롯에 무효 ProblemAttempt가 여러 개 있어도 유효 문제 수는 1입니다. 연습은 별도 메모리 상태로 실행하며 Room의 성적·학습 테이블에 넣지 않습니다.
+화면의 연습은 Room에 저장하지 않습니다. 동일 슬롯의 무효 문제를 여러 번 교체해도 finalizedProblemId는 유효 완료 하나만 가리킵니다. KEEP도 새 결정과 조건 버전이므로 이후 게임의 보상을 구분할 수 있습니다.
 
-DifficultyDecision의 고정 복원 행동은 `RESTORE_FULL`/`RESTORE_PARTIAL`로 기록합니다. BanditState의 행동 키는 명세의 KEEP/ADJUST_MEMORY/ADJUST_SOLVE 세 개뿐이며 고정 복원을 추가하지 않습니다.
+## 원자성·중단
 
-Room 기본 `Index`로 표현하기 어려운 ‘유형·epoch별 OPEN 묶음 최대 1개’ 같은 조건은 Repository 단일 트랜잭션으로 검사하고 경쟁 호출 테스트를 추가합니다. SQL 부분 인덱스를 사용하게 되면 마이그레이션과 해당 인덱스 검증을 함께 작성합니다.
+ViewModel은 입력 시각을 먼저 잡고 저장 이벤트를 직렬 처리합니다. 문제/선택 저장 → 슬롯 확정 → 해당 게임의 묶음 배정 → 10개 완성 시 합산 통계/이전 선택 보상 → 새 판단 → 공통 조건 적용/복원 이력 → 게임 완료/진행 해제를 한 Room 트랜잭션으로 처리합니다. 화면에는 커밋 성공 후 결과를 공개합니다. 같은 완료가 동시에 재전송되어도 고유 키와 슬롯 확정 검사로 중복 학습하지 않습니다.
 
-## 문제 조건과 학습 포함 구분
+종합 회전은 `COMPLETED AND MIXED` 행 수 `% 3`으로 구합니다. 앱 종료·일시정지에서는 완료 문제와 같은 게임의 OPEN 묶음을 유지합니다. 강제 종료 후 남은 ACTIVE 문항은 INVALID로 보존하고 같은 슬롯·조건의 새 문제로 교체합니다. 이전 프로세스의 단조 시각 원점을 재사용하지 않습니다.
 
-문제마다 기억·대기·선택지·풀이 제한, 생성 버전과 소재 ID, 선택지 순서를 스냅샷으로 남깁니다. 현재 DifficultyState를 조회해 과거 조건을 추정하지 않습니다.
+명시적인 진행 종료는 사이클 STOPPED와 묶음 CLOSED_BY_CYCLE_STOPPED를 함께 저장합니다. 완료 성적은 보존하지만 10개 미만으로 판단/보상을 만들지 않으며 다음 게임에 부분 기록을 넘기지 않습니다. 이전 적용 결정의 보상 연결은 다음 온전한 완료 게임까지 유지합니다. STOPPED는 종합 회전을 진행하지 않습니다.
 
-| learningDisposition | 사용자 유효 기록 | BundleMember |
-| --- | --- | --- |
-| INCLUDED | 포함 | 해당 묶음에 1회 포함 |
-| AFTER_BUNDLE_COMPLETE | 포함 | 제외. 사이클 중 묶음 완료 후 남은 같은 유형 문항 |
-| INVALID | 제외 | 제외. 무효 이력은 보존 |
+## v1/v2 업그레이드
 
-화면 사이클과 학습 묶음은 다대다 관계이며 BundleMember가 연결을 담당합니다. 종합·유형별 훈련이 같은 유형의 OPEN 묶음을 공유합니다. 유효 문제 수와 AI 학습 포함 수는 서로 다른 집계입니다.
+Room AutoMigration 1→2→3은 기존 원본과 AI 테이블을 모두 보존합니다. v3는 algorithm_config.learningScope를 PER_TYPE 기본값으로 추가하고 learning_bundles.cycleId를 nullable로 추가합니다. 파괴적 초기화는 없습니다.
 
-단순 조건 값이 같은 KEEP 전후도 서로 다른 적용 결정·묶음입니다. 조건 버전, 적용 결정 ID, 알고리즘 epoch로 학습 연결을 구분합니다. 같은 조건 비교용 키는 별도로 유형·기억·대기·선택지·풀이 제한·생성 버전을 사용하며 버전 번호 자체가 다르다는 이유로 같은 실제 조건을 비교에서 제외하지 않습니다.
+최초 Repository 초기화는 기존 PER_TYPE 범위의 OPEN 묶음·대기 판단·미보상 연결을 SCOPE_CHANGE 종료 상태로 보관하고 이전 epoch를 닫습니다. 기본 조건(기억 20초·대기 3초·보기 4개·풀이 무제한), 학습값 0인 COMBINED 정책과 새 epoch를 한 트랜잭션으로 생성합니다. 이전 단축량·보상·원본을 새로운 정책에 합산하거나 소급 학습하지 않습니다.
 
-## 트랜잭션 경계
+기존 진행 게임의 epoch와 슬롯은 바꾸지 않습니다. 기존 조건대로 마친 결과는 성적에만 남기고, 다음 새 종합 게임부터 통합 학습을 합니다. config.learningScope=COMBINED이면 이 초기화를 반복하지 않습니다. DB 도입 이전에 이미 사라진 메모리 기록은 복구할 수 없습니다.
 
-### 사이클 시작
+## 모드와 화면
 
-진행 중인 사이클이 없음을 확인하고 사이클과 10개 슬롯을 함께 생성합니다. 종합 배정은 `completedMixedCycleCount % 3`으로 결정하고 섞은 슬롯 계획을 저장합니다. 유형별 사이클은 해당 카운터를 변경하지 않습니다. 이어하기는 새 사이클이나 새 계획을 만들지 않습니다.
+디버그에서 진행 중 게임이 없을 때 BANDIT/COMPARISON을 바꿉니다. 새 epoch를 만들고 보상 대기를 닫되 공통 난이도·복원 이력·기존 통합 학습값은 유지합니다. 이전 유형별 보관 행은 수정하지 않습니다.
 
-### 답변과 문제 완료
-
-하나의 게임 상태 처리기가 답변·타임아웃·화면 이탈 이벤트를 순서대로 처리합니다. 현재 runToken과 problemId가 다른 지연 이벤트는 무시합니다. 같은 오답은 다시 기록하지 않고 풀이 시작 시각도 바꾸지 않습니다.
-
-한 Room 트랜잭션에서 다음을 수행합니다.
-
-1. 이미 끝난 문항 또는 finalizedProblemId가 있는 슬롯이면 중복 완료를 반환합니다.
-2. 선택 내역·문제 결과를 저장하고 슬롯에 유효 완료 문항을 연결합니다.
-3. 학습 대상이면 OPEN 묶음에 유일한 BundleMember를 추가합니다. 같은 유형의 대기 결정이 있으면 AFTER_BUNDLE_COMPLETE로 남깁니다.
-4. 묶음이 10개가 됐다면 완료 통계를 저장합니다. 이전 밴딧 결정에 대한 RewardReceipt가 없을 때만 할인·보상을 반영하고 receipt를 삽입합니다.
-5. 갱신한 학습값으로 다음 결정을 만들어 PENDING으로 저장합니다. inputBundleId 고유 제약으로 중복 결정을 막습니다.
-6. 마지막 슬롯까지 끝났으면 아래 사이클 완료 처리를 **동일 트랜잭션** 안에서 수행합니다.
-
-### 사이클 완료
-
-10개 슬롯에 각각 유효 완료 문항이 있을 때만 COMPLETED로 바꿉니다. 해당 사이클에서 대기한 유형별 결정을 한 번 적용하고 before/after와 복원 이력을 저장합니다. 종합이면 completedMixedCycleCount를 한 번 늘리고 activeCycleId를 비웁니다. 트랜잭션 실패 시 사이클 완료·조건 변경·카운터 증가 모두 롤백합니다.
-
-학습값은 문제 결과를 바탕으로 계산하지만 게임 화면에 후보 점수·수식·내부 보상 값을 노출하지 않습니다. 개발 진단 화면에서 결정 ID와 실제 저장값을 조회합니다.
-
-## 중단·시계·재개
-
-- 판정과 시간 측정에는 주입한 단조 증가 시계를 사용합니다. 날짜 표시용 UTC 시각은 별도로 저장합니다.
-- 풀이 시작점은 선택지 전체가 표시된 첫 프레임입니다. 그 시점에 시작 시각을 고정하고 답변 입력을 활성화합니다. 오답 후에도 같은 시작 시각을 사용합니다.
-- 제한 시간이 있으면 판정 단조 시각이 마감보다 작을 때만 답변을 처리합니다. 마감과 같거나 크면 시간 초과입니다. UI 카운트다운 tick의 실행 순서로 판정하지 않습니다.
-- 실제 게임 화면을 벗어나거나 앱이 백그라운드로 이동하면 진행 중 문항을 INVALID로 저장합니다. 내부 Compose 재구성만으로 문항을 무효 처리하지 않습니다.
-- 프로세스가 종료돼 무효 저장을 못 했어도 시작 시 남아 있는 미완료 문항을 이전 runToken의 중단 문항으로 무효 처리합니다.
-- 재개 시 완료 슬롯·묶음·대기 결정은 보존합니다. 미완료 슬롯에 같은 조건의 **새 problemId·새 문제 내용**을 생성하며 이전 문항을 이어서 정답 처리하지 않습니다.
-- 단조 시각의 절대값을 재부팅·프로세스 재시작 이후 경과 시간 계산에 재사용하지 않습니다. 완료된 문항은 저장된 지속 시간으로 집계합니다.
-
-## 모드 전환과 저장소 책임
-
-종합/유형별 훈련은 같은 epoch와 누적 묶음을 공유합니다. 개발용 BANDIT/COMPARISON 전환은 진행 사이클이 없을 때 Room 트랜잭션으로 epoch를 변경하고 미완성 묶음·미보상 연결을 종료 상태로 보존합니다. 정확한 경계 정책은 [AI_DESIGN.md](AI_DESIGN.md)에 있습니다.
-
-안내·효과음 등 단순 환경 설정은 DataStore에 둡니다. 학습 연결을 결정하는 알고리즘 모드의 적용 상태는 Room의 AlgorithmEpoch를 진실의 원천으로 삼습니다. DataStore와 Room 사이에 원자적 트랜잭션이 있다고 가정하지 않습니다.
-
-## 기록·비교 조회
-
-학습 현황의 완료 사이클 수는 COMPLETED만, 유효 문제 수는 유효 완료 슬롯만 집계합니다. 유형별 첫 정답률은 첫 정답 수/해당 유형 유효 문제 수입니다. AFTER_BUNDLE_COMPLETE도 사용자 기록에는 포함합니다. 무효·연습은 제외합니다.
-
-종합 결과에는 전체 10문제와 유형별 실제 문항 수(4/3/3)를 함께 보여줍니다. 동일 조건 비교는 조건 키와 알고리즘 모드를 확인하고 비교 모집단·문제 수를 함께 표시합니다. 자료가 없거나 부족하면 비교 불가로 안내하며 서로 다른 난이도를 합쳐 향상·저하로 표시하지 않습니다.
-
-최소 표본 기준과 기간별 비교 창은 기록 화면 PR에서 명시하고 테스트합니다. 이 문서에서는 임의의 통계적 유의성 기준이나 인지 효과 판단을 추가하지 않습니다.
+학습 현황은 전체 성적·유형별 참고 성적·최근 30회와 공통 난이도 한 개를 표시합니다. 개발 진단은 통합 정책의 최근 판단/후보/보상/행동별 학습값만 조회합니다. 수식은 게임 화면에 표시하지 않습니다. 조건별 비교·효과음/환경 설정은 후속 범위이며 아직 DataStore 의존성은 없습니다.
