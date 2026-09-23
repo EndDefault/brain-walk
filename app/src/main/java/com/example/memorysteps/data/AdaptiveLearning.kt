@@ -13,38 +13,30 @@ internal class AdaptiveLearning(private val db: LearningDatabase) {
     private fun id() = UUID.randomUUID().toString()
 
     suspend fun initialize(at: Long) {
-        if (dao.config() != null) return
-        val epoch = AlgorithmEpochEntity(id(), AlgorithmMode.BANDIT.name, at)
+        val oldConfig = dao.config()
+        if (oldConfig?.learningScope == LearningScope.COMBINED) return
+        val oldEpoch = oldConfig?.let { dao.epoch(it.epochId) }
+        // Per-type policies cannot supply rewards to the new, shared policy. Preserve their
+        // history, but close every live connection before opening the combined scope.
+        dao.closeLegacyBundles()
+        dao.cancelLegacyDecisions()
+        dao.cancelLegacyRewards()
+        dao.markLegacyRecords()
+        oldEpoch?.let { dao.updateEpoch(it.copy(closedAt = at)) }
+        val epoch = AlgorithmEpochEntity(id(), oldEpoch?.mode ?: AlgorithmMode.BANDIT.name, at)
         dao.insertEpoch(epoch)
         dao.setConfig(AlgorithmConfigEntity(epochId = epoch.id))
-        GameType.entries.forEach { type ->
-            dao.setDifficulty(DifficultyEntity(type.name))
-            DiscountedUcb.actions.forEach { action -> dao.setArm(BanditArmEntity(type.name, action.name,
-                DiscountedUcb.VERSION, false, 0.0, 0.0, at)) }
-        }
-        records.progress()?.activeCycleId?.let { cycleId ->
-            val cycle = checkNotNull(records.cycle(cycleId))
-            records.updateCycle(cycle.copy(modeEpochId = epoch.id))
-        }
-        // Old records were collected before any policy was applied. Use one recent calibration
-        // window per type, without inventing counterfactual bandit rewards for historical games.
-        dao.legacyObservations().groupBy { it.type }.forEach { (type, all) ->
-            all.forEach { dao.markProblem(it.problem.id, "LEGACY_RECORD_ONLY") }
-            val eligible = all.filter { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) == GameConditions() }
-            val generator = eligible.lastOrNull()?.problem?.generatorVersion ?: return@forEach
-            val window = eligible.filter { it.problem.generatorVersion == generator }.takeLast(10)
-            if (window.isNotEmpty()) {
-                val state = checkNotNull(dao.difficulty(type))
-                val bundle = newBundle(state, epoch.id, generator, "LEGACY_CALIBRATION", at)
-                window.forEach { include(bundle, it.problem, at) }
-            }
-        }
-        if (records.progress()?.activeCycleId == null) applyPending(at)
+        dao.setDifficulty(DifficultyEntity(LearningScope.COMBINED, conditionVersion = "combined-initial-v1"))
+        DiscountedUcb.actions.forEach { action -> dao.setArm(BanditArmEntity(LearningScope.COMBINED, action.name,
+            DiscountedUcb.VERSION, false, 0.0, 0.0, at)) }
+        // An already-started old cycle keeps its frozen slots and original epoch. Its remaining
+        // answers are preserved as records; the next new game starts combined learning.
     }
 
-    private suspend fun newBundle(state: DifficultyEntity, epoch: String, generator: String, origin: String, at: Long): BundleEntity {
-        val bundle = BundleEntity(id(), state.type, epoch, state.conditionVersion, AdaptiveCodec.conditions(state.conditions()),
-            generator, state.appliedDecisionId, "OPEN", origin, at)
+    private suspend fun newBundle(state: DifficultyEntity, cycle: CycleEntity, at: Long): BundleEntity {
+        val bundle = BundleEntity(id(), LearningScope.COMBINED, checkNotNull(cycle.modeEpochId), state.conditionVersion,
+            AdaptiveCodec.conditions(state.conditions()), ProblemGenerator.combinedVersion, state.appliedDecisionId,
+            "OPEN", "COMBINED_GAME", at, cycleId = cycle.id)
         dao.insertBundle(bundle)
         return bundle
     }
@@ -53,24 +45,27 @@ internal class AdaptiveLearning(private val db: LearningDatabase) {
         check(problem.status == "COMPLETED")
         if (dao.member(problem.id) != null) return
         val config = checkNotNull(dao.config())
-        check(cycle.modeEpochId == config.epochId)
-        val state = checkNotNull(dao.difficulty(slot.type))
-        check(state.conditionVersion == slot.conditionVersion)
-        check(state.conditions() == GameConditions(slot.memoryMs, slot.waitMs, slot.optionCount, slot.solveMs))
-        if (dao.pendingDecisions().any { it.type == slot.type }) {
-            dao.markProblem(problem.id, "AFTER_BUNDLE_COMPLETE")
+        if (cycle.modeEpochId != config.epochId) {
+            dao.markProblem(problem.id, "LEGACY_SCOPE_RECORD_ONLY")
             return
         }
-        val open = dao.openBundles(slot.type, config.epochId)
-        check(open.size <= 1)
-        val bundle = open.singleOrNull() ?: newBundle(state, config.epochId, problem.generatorVersion, "LIVE", at)
-        check(bundle.conditionVersion == slot.conditionVersion && bundle.generatorVersion == problem.generatorVersion)
+        if (cycle.mode != TrainingMode.MIXED.name) {
+            dao.markProblem(problem.id, "EXCLUDED_TRAINING_MODE")
+            return
+        }
+        val state = checkNotNull(dao.difficulty(LearningScope.COMBINED))
+        check(state.conditionVersion == slot.conditionVersion)
+        check(state.conditions() == GameConditions(slot.memoryMs, slot.waitMs, slot.optionCount, slot.solveMs))
+        check(problem.generatorVersion == ProblemGenerator.version(GameType.valueOf(slot.type)))
+        val bundle = dao.cycleBundle(cycle.id) ?: newBundle(state, cycle, at)
+        check(bundle.conditionVersion == slot.conditionVersion && bundle.generatorVersion == ProblemGenerator.combinedVersion)
         include(bundle, problem, at)
     }
 
     private suspend fun include(bundle: BundleEntity, problem: ProblemEntity, at: Long) {
         val count = dao.memberCount(bundle.id)
         check(count < 10 && dao.bundle(bundle.id)?.status == "OPEN")
+        check(problem.cycleId == bundle.cycleId && problem.slotIndex == count)
         dao.insertMember(BundleMemberEntity(problem.id, bundle.id, count))
         dao.markProblem(problem.id, "INCLUDED")
         if (count == 9) finish(bundle, at)
@@ -118,6 +113,7 @@ internal class AdaptiveLearning(private val db: LearningDatabase) {
 
     suspend fun applyPending(at: Long) {
         dao.pendingDecisions().forEach { decision ->
+            check(decision.type == LearningScope.COMBINED)
             val state = checkNotNull(dao.difficulty(decision.type))
             val before = AdaptiveCodec.conditions(decision.beforeConditions)
             val after = AdaptiveCodec.conditions(decision.afterConditions)
@@ -162,7 +158,8 @@ internal class AdaptiveLearning(private val db: LearningDatabase) {
         val next = AlgorithmEpochEntity(id(), mode.name, at)
         dao.insertEpoch(next)
         dao.setConfig(AlgorithmConfigEntity(epochId = next.id))
-        dao.difficulties().forEach { dao.setDifficulty(it.copy(appliedDecisionId = null)) }
+        val state = checkNotNull(dao.difficulty(LearningScope.COMBINED))
+        dao.setDifficulty(state.copy(appliedDecisionId = null))
         return true
     }
 

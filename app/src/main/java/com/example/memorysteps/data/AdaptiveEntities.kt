@@ -4,11 +4,17 @@ import androidx.room.*
 import com.example.memorysteps.game.GameConditions
 import kotlinx.coroutines.flow.Flow
 
+object LearningScope {
+    const val COMBINED = "COMBINED"
+    const val PER_TYPE = "PER_TYPE"
+}
+
 @Entity(tableName = "algorithm_epochs")
 data class AlgorithmEpochEntity(@PrimaryKey val id: String, val mode: String, val openedAt: Long, val closedAt: Long? = null)
 
 @Entity(tableName = "algorithm_config")
-data class AlgorithmConfigEntity(@PrimaryKey val singleton: Int = 1, val epochId: String)
+data class AlgorithmConfigEntity(@PrimaryKey val singleton: Int = 1, val epochId: String,
+    @ColumnInfo(defaultValue = "'PER_TYPE'") val learningScope: String = LearningScope.COMBINED)
 
 @Entity(tableName = "difficulty_states")
 data class DifficultyEntity(
@@ -19,13 +25,14 @@ data class DifficultyEntity(
     fun conditions() = GameConditions(memoryMs, waitMs, optionCount, solveMs)
 }
 
-@Entity(tableName = "learning_bundles", indices = [Index(value = ["type", "epochId", "status"])])
+@Entity(tableName = "learning_bundles", indices = [Index(value = ["type", "epochId", "status"]), Index(value = ["cycleId"], unique = true)])
 data class BundleEntity(
     @PrimaryKey val id: String, val type: String, val epochId: String, val conditionVersion: String,
     val conditions: String, val generatorVersion: String, val sourceDecisionId: String?,
     val status: String, val origin: String, val createdAt: Long, val completedAt: Long? = null,
     val firstCorrect: Int? = null, val memorySumMs: Long? = null, val memoryCount: Int? = null,
     val solveSumMs: Long? = null, val weightedSumMs: Long? = null, val solvedCount: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val cycleId: String? = null,
 )
 
 @Entity(tableName = "bundle_members",
@@ -76,6 +83,7 @@ interface AdaptiveDao {
     @Update suspend fun updateBundle(bundle: BundleEntity)
     @Query("SELECT * FROM learning_bundles WHERE type = :type AND epochId = :epoch AND status = 'OPEN'") suspend fun openBundles(type: String, epoch: String): List<BundleEntity>
     @Query("SELECT * FROM learning_bundles WHERE id = :id") suspend fun bundle(id: String): BundleEntity?
+    @Query("SELECT * FROM learning_bundles WHERE cycleId = :cycleId") suspend fun cycleBundle(cycleId: String): BundleEntity?
     @Insert suspend fun insertMember(member: BundleMemberEntity)
     @Query("SELECT COUNT(*) FROM bundle_members WHERE bundleId = :id") suspend fun memberCount(id: String): Int
     @Query("SELECT * FROM bundle_members WHERE problemId = :id") suspend fun member(id: String): BundleMemberEntity?
@@ -85,10 +93,10 @@ interface AdaptiveDao {
     @Update suspend fun updateDecision(decision: DecisionEntity)
     @Query("SELECT * FROM ai_decisions WHERE id = :id") suspend fun decision(id: String): DecisionEntity?
     @Query("SELECT * FROM ai_decisions WHERE status = 'PENDING' ORDER BY createdAt, id") suspend fun pendingDecisions(): List<DecisionEntity>
-    @Query("SELECT * FROM ai_decisions ORDER BY createdAt DESC, id DESC LIMIT 30") fun observeDecisions(): Flow<List<DecisionEntity>>
+    @Query("SELECT * FROM ai_decisions WHERE type = 'COMBINED' ORDER BY createdAt DESC, id DESC LIMIT 30") fun observeDecisions(): Flow<List<DecisionEntity>>
     @Upsert suspend fun setArm(arm: BanditArmEntity)
     @Query("SELECT * FROM bandit_arms WHERE type = :type AND algorithmVersion = :version ORDER BY action") suspend fun arms(type: String, version: String): List<BanditArmEntity>
-    @Query("SELECT * FROM bandit_arms ORDER BY type, action") fun observeArms(): Flow<List<BanditArmEntity>>
+    @Query("SELECT * FROM bandit_arms WHERE type = 'COMBINED' ORDER BY action") fun observeArms(): Flow<List<BanditArmEntity>>
     @Insert suspend fun insertReward(reward: RewardEntity)
     @Query("SELECT * FROM reward_receipts WHERE decisionId = :id") suspend fun reward(id: String): RewardEntity?
     @Query("SELECT COUNT(*) FROM reward_receipts") suspend fun rewardCount(): Int
@@ -100,6 +108,11 @@ interface AdaptiveDao {
     @Query("UPDATE reduction_history SET status = 'CLOSED' WHERE type = :type AND axis = 'SOLVE' AND status = 'ACTIVE'") suspend fun closeSolveReductions(type: String)
     @Query("UPDATE learning_bundles SET status = 'CLOSED_BY_MODE_CHANGE' WHERE epochId = :epoch AND status = 'OPEN'") suspend fun closeBundles(epoch: String)
     @Query("UPDATE ai_decisions SET rewardStatus = 'CANCELLED_BY_MODE_CHANGE' WHERE epochId = :epoch AND rewardStatus = 'WAITING'") suspend fun cancelRewards(epoch: String)
+    @Query("UPDATE learning_bundles SET status = 'CLOSED_BY_SCOPE_CHANGE' WHERE status = 'OPEN'") suspend fun closeLegacyBundles()
+    @Query("UPDATE ai_decisions SET status = 'CANCELLED_BY_SCOPE_CHANGE' WHERE status = 'PENDING'") suspend fun cancelLegacyDecisions()
+    @Query("UPDATE ai_decisions SET rewardStatus = 'CANCELLED_BY_SCOPE_CHANGE' WHERE rewardStatus IN ('WAITING', 'PENDING_APPLY')") suspend fun cancelLegacyRewards()
+    @Query("UPDATE learning_bundles SET status = 'CLOSED_BY_CYCLE_STOPPED' WHERE cycleId = :cycleId AND status = 'OPEN'") suspend fun stopCycleBundle(cycleId: String)
+    @Query("UPDATE problem_attempts SET learningStatus = 'LEGACY_RECORD_ONLY' WHERE status = 'COMPLETED' AND learningStatus = 'PENDING_ALGORITHM'") suspend fun markLegacyRecords()
     @Query("UPDATE problem_attempts SET learningStatus = :status WHERE id = :id") suspend fun markProblem(id: String, status: String)
     @Query("""SELECT p.*, s.type, s.memoryMs, s.waitMs, s.optionCount, s.solveMs
         FROM problem_attempts p JOIN cycle_slots s ON s.finalizedProblemId = p.id
@@ -108,7 +121,7 @@ interface AdaptiveDao {
     @Query("""SELECT d.*, COUNT(m.problemId) AS collected,
         EXISTS(SELECT 1 FROM ai_decisions a WHERE a.type = d.type AND a.status = 'PENDING') AS pending
         FROM difficulty_states d LEFT JOIN learning_bundles b ON b.type = d.type AND b.status = 'OPEN'
-        LEFT JOIN bundle_members m ON m.bundleId = b.id GROUP BY d.type ORDER BY d.type""")
+        LEFT JOIN bundle_members m ON m.bundleId = b.id WHERE d.type = 'COMBINED' GROUP BY d.type""")
     fun observeProfiles(): Flow<List<LearningProfile>>
-    @Query("SELECT * FROM learning_bundles ORDER BY createdAt DESC, id DESC LIMIT 30") fun observeBundles(): Flow<List<BundleEntity>>
+    @Query("SELECT * FROM learning_bundles WHERE type = 'COMBINED' ORDER BY createdAt DESC, id DESC LIMIT 30") fun observeBundles(): Flow<List<BundleEntity>>
 }

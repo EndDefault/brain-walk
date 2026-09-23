@@ -27,7 +27,7 @@ class AdaptiveLearningTest {
     @Before fun open() { db = LearningDatabase.open(context, name); repository = LearningRepository(db) }
     @After fun close() { db.close(); context.deleteDatabase(name) }
     private fun reopen() { db.close(); open() }
-    private suspend fun start(mode: TrainingMode = TrainingMode.COLOR) = repository.startFormal(mode, clock, token, now)
+    private suspend fun start(mode: TrainingMode = TrainingMode.MIXED) = repository.startFormal(mode, clock, token, now)
     private suspend fun save(game: TrainingSession) = repository.save(game.state, token, now)
     private suspend fun solve(game: TrainingSession, firstCorrect: Boolean = true, fail: Boolean = false, memoryMs: Long = 1_200) {
         val p = game.state.problem
@@ -49,51 +49,59 @@ class AdaptiveLearningTest {
         }
     }
 
-    @Test fun threeMixedGamesProduceThreeIndependentDecisionsOnlyAtCycleEnd() = runBlocking {
-        repeat(3) {
-            val game = start(TrainingMode.MIXED)
-            assertTrue(game.slotConditions.all { it == GameConditions() })
-            repeat(10) { index ->
-                solve(game)
-                if (index < 9) {
-                    assertTrue(ai.difficulties().all { it.memoryMs == 20_000L })
-                    game.advance(game.state.problem.id); save(game)
-                }
+    @Test fun firstMixedGameProducesOneSharedDecisionOnlyAfterAllTenQuestions() = runBlocking {
+        val game = start()
+        assertTrue(game.slotConditions.all { it == GameConditions() })
+        repeat(10) { index ->
+            solve(game)
+            if (index < 9) {
+                assertEquals(0, ai.decisionCount())
+                assertEquals(20_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
+                assertEquals(index + 1, ai.observeProfiles().first().single().collected)
+                game.advance(game.state.problem.id); save(game)
             }
         }
-        assertEquals(3, ai.decisionCount())
+        assertEquals(1, ai.decisionCount())
         assertEquals(0, ai.rewardCount())
-        assertTrue(ai.difficulties().all { it.memoryMs == 5_000L })
-        assertEquals(30, db.learningDao().observeOverview().first().problems)
+        val bundle = ai.cycleBundle(game.state.sessionId)!!
+        assertEquals(LearningScope.COMBINED, bundle.type)
+        assertEquals(10, ai.memberCount(bundle.id))
+        assertEquals(10, ai.observations(bundle.id).size)
+        assertEquals(3, game.plan.distinct().size)
+        assertEquals(1, ai.difficulties().size)
+        assertEquals(5_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
+        assertEquals(10, db.learningDao().observeOverview().first().problems)
+        assertTrue(game.slotConditions.all { it.memoryLimitMs == 20_000L })
         reopen()
-        val next = start(TrainingMode.MIXED)
+        val next = start()
         assertTrue(next.slotConditions.all { it.memoryLimitMs == 5_000L })
-        assertEquals(4, next.plan.count { it == GameType.COLOR })
+        assertEquals(4, next.plan.count { it == GameType.PICTURE })
     }
 
-    @Test fun pendingDecisionAndRecordOnlyRemainderSurviveReopeningMidCycle() = runBlocking {
+    @Test fun stoppedPartialGameIsPreservedButNeverCombinedWithTheNextGame() = runBlocking {
         val seed = start()
         repeat(8) { solve(seed); seed.advance(seed.state.problem.id); save(seed) }
         repository.stop(seed.state.sessionId, now)
-        var mixed = start(TrainingMode.MIXED)
-        var reopened = false
+        assertEquals("CLOSED_BY_CYCLE_STOPPED", ai.cycleBundle(seed.state.sessionId)!!.status)
+        assertEquals(0, ai.observeProfiles().first().single().collected)
+        assertEquals(0, ai.decisionCount())
+        var mixed = start()
         repeat(10) { index ->
             solve(mixed)
-            if (!reopened && ai.pendingDecisions().isNotEmpty()) {
-                assertEquals(20_000L, ai.difficulty("COLOR")!!.memoryMs)
+            if (index == 1) {
+                assertEquals(0, ai.decisionCount())
+                assertEquals(20_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
                 reopen()
                 mixed = TrainingSession.restore(repository.recoverActive(now)!!, clock)
                 assertEquals(index + 1, mixed.state.questionNumber)
-                reopened = true
+                assertEquals(2, ai.observeProfiles().first().single().collected)
             }
             if (index < 9) { mixed.advance(mixed.state.problem.id); save(mixed) }
         }
-        assertTrue(reopened)
-        val color = db.learningDao().problems(mixed.state.sessionId).filter { it.content.contains("COLOR:") }
-        assertEquals(2, color.count { it.learningStatus == "INCLUDED" })
-        assertEquals(2, color.count { it.learningStatus == "AFTER_BUNDLE_COMPLETE" })
-        assertEquals(5_000L, ai.difficulty("COLOR")!!.memoryMs)
-        assertEquals(20_000L, ai.difficulty("PICTURE")!!.memoryMs)
+        assertEquals(1, ai.decisionCount())
+        assertEquals(10, ai.memberCount(ai.cycleBundle(mixed.state.sessionId)!!.id))
+        assertEquals(8, ai.memberCount(ai.cycleBundle(seed.state.sessionId)!!.id))
+        assertEquals(5_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
         assertEquals(18, db.learningDao().observeOverview().first().problems)
     }
 
@@ -110,12 +118,12 @@ class AdaptiveLearningTest {
         reopen()
         assertEquals(1, ai.rewardCount())
         assertEquals(1.0, ai.reward(firstDecision.id)!!.reward, 1e-12)
-        val memory = ai.arms("COLOR", DiscountedUcb.VERSION).single { it.action == "ADJUST_MEMORY" }
+        val memory = ai.arms(LearningScope.COMBINED, DiscountedUcb.VERSION).single { it.action == "ADJUST_MEMORY" }
         assertEquals(1.0, memory.effectiveCount, 1e-12)
         assertEquals(1.0, memory.rewardSum, 1e-12)
         assertEquals(2, ai.decisionCount())
         assertEquals("REWARDED", ai.decision(firstDecision.id)!!.rewardStatus)
-        assertTrue(ai.arms("PICTURE", DiscountedUcb.VERSION).all { it.effectiveCount == 0.0 })
+        assertEquals(3, ai.observeArms().first().size)
     }
 
     @Test fun transactionFailureRollsBackAnswerRewardDecisionAndCycleCompletionTogether() = runBlocking {
@@ -128,7 +136,7 @@ class AdaptiveLearningTest {
         assertEquals(0, ai.rewardCount())
         assertEquals(1, ai.decisionCount())
         assertEquals(next.state.sessionId, db.learningDao().progress()!!.activeCycleId)
-        assertTrue(ai.arms("COLOR", DiscountedUcb.VERSION).all { it.effectiveCount == 0.0 })
+        assertTrue(ai.arms(LearningScope.COMBINED, DiscountedUcb.VERSION).all { it.effectiveCount == 0.0 })
         db.openHelper.writableDatabase.execSQL("DROP TRIGGER reject_decision")
         val recovered = TrainingSession.restore(repository.recoverActive(now)!!, clock)
         recovered.resume(recovered.state.problem.id); save(recovered)
@@ -147,12 +155,12 @@ class AdaptiveLearningTest {
         repository.stop(unfinished.state.sessionId, now)
         assertTrue(repository.changeAlgorithm(AlgorithmMode.COMPARISON, now))
         assertEquals("CANCELLED_BY_MODE_CHANGE", ai.decision(first.id)!!.rewardStatus)
-        assertEquals(5_000L, ai.difficulty("COLOR")!!.memoryMs)
-        assertTrue(ai.observeBundles().first().any { it.status == "CLOSED_BY_MODE_CHANGE" })
+        assertEquals(5_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
+        assertTrue(ai.observeBundles().first().any { it.status == "CLOSED_BY_CYCLE_STOPPED" })
         complete(start())
         assertEquals(0, ai.rewardCount())
         assertTrue(ai.observeDecisions().first().any { it.source == "COMPARISON" && it.action == "ADJUST_SOLVE" })
-        assertTrue(ai.arms("COLOR", DiscountedUcb.VERSION).all { it.effectiveCount == 0.0 })
+        assertTrue(ai.arms(LearningScope.COMBINED, DiscountedUcb.VERSION).all { it.effectiveCount == 0.0 })
         assertTrue(repository.changeAlgorithm(AlgorithmMode.BANDIT, now))
         complete(start())
         assertEquals(0, ai.rewardCount())
@@ -161,32 +169,38 @@ class AdaptiveLearningTest {
     @Test fun restorationConsumesLatestRemainderOnceAndPersistsAcrossRestart() = runBlocking {
         repository.changeAlgorithm(AlgorithmMode.COMPARISON, now)
         complete(start(), memoryMs = 12_000)
-        assertEquals(11_000L, ai.difficulty("COLOR")!!.memoryMs)
+        assertEquals(11_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
         complete(start(), memoryMs = 8_000)
-        assertEquals(7_000L, ai.difficulty("COLOR")!!.memoryMs)
+        assertEquals(7_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
         val partial = start()
         complete(partial, firstCount = 2, failures = true)
         save(partial); save(partial)
         reopen()
-        assertEquals(9_000L, ai.difficulty("COLOR")!!.memoryMs)
-        assertEquals(listOf(9_000L, 2_000L), ai.reductions("COLOR").map { it.remainingMs })
+        assertEquals(9_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
+        assertEquals(listOf(9_000L, 2_000L), ai.reductions(LearningScope.COMBINED).map { it.remainingMs })
         complete(start(), firstCount = 0, failures = true)
-        assertEquals(11_000L, ai.difficulty("COLOR")!!.memoryMs)
+        assertEquals(11_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
         complete(start(), firstCount = 0, failures = true)
-        assertEquals(20_000L, ai.difficulty("COLOR")!!.memoryMs)
+        assertEquals(20_000L, ai.difficulty(LearningScope.COMBINED)!!.memoryMs)
         assertEquals(0, ai.rewardCount())
     }
 
-    @Test fun mixedCycleRestoresEveryTypesFrozenConditionsInsteadOfCopyingCurrentProblem() = runBlocking {
+    @Test fun interruptedGameRestoresSharedConditionsAndCompletesItsOriginalBundle() = runBlocking {
         complete(start())
         val mixed = start(TrainingMode.MIXED)
         repeat(4) { solve(mixed); mixed.advance(mixed.state.problem.id); save(mixed) }
         reopen()
         val restored = TrainingSession.restore(repository.recoverActive(now)!!, clock)
-        restored.plan.forEachIndexed { index, type ->
-            assertEquals(if (type == GameType.COLOR) 5_000L else 20_000L, restored.slotConditions[index].memoryLimitMs)
-        }
+        assertTrue(restored.slotConditions.all { it.memoryLimitMs == 5_000L })
+        assertEquals(4, ai.memberCount(ai.cycleBundle(mixed.state.sessionId)!!.id))
         restored.resume(restored.state.problem.id); save(restored)
         assertEquals(restored.slotConditions[restored.state.questionNumber - 1], restored.state.problem.conditions)
+        repeat(6) { index ->
+            solve(restored)
+            if (index < 5) { restored.advance(restored.state.problem.id); save(restored) }
+        }
+        assertEquals(10, ai.memberCount(ai.cycleBundle(mixed.state.sessionId)!!.id))
+        assertEquals(2, ai.decisionCount())
+        assertEquals(1, ai.rewardCount())
     }
 }

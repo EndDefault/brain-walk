@@ -108,7 +108,7 @@ interface LearningDao {
     AlgorithmEpochEntity::class, AlgorithmConfigEntity::class, DifficultyEntity::class, BundleEntity::class,
     BundleMemberEntity::class, DecisionEntity::class, BanditArmEntity::class, RewardEntity::class,
     ReductionEntity::class, RestorationEntity::class],
-    version = 2, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2)])
+    version = 3, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
 abstract class LearningDatabase : RoomDatabase() {
     abstract fun learningDao(): LearningDao
     abstract fun adaptiveDao(): AdaptiveDao

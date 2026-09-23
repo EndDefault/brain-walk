@@ -14,8 +14,8 @@ class LearningRepository(private val db: LearningDatabase) {
         adaptive.initialize(at)
         check(dao.progress()?.activeCycleId == null)
         adaptive.applyPending(at)
-        val conditions = adaptiveDao.difficulties().associate { GameType.valueOf(it.type) to it.conditions() }
-        val session = TrainingSession(mode, dao.completedMixedCycles(), clock, conditionsByType = conditions)
+        val conditions = checkNotNull(adaptiveDao.difficulty(LearningScope.COMBINED)).conditions()
+        val session = TrainingSession(mode, dao.completedMixedCycles(), clock, conditions = conditions)
         create(session, runToken, at)
         session
     }
@@ -30,12 +30,11 @@ class LearningRepository(private val db: LearningDatabase) {
         val rotation = dao.completedMixedCycles()
         dao.insertCycle(CycleEntity(state.sessionId, state.mode.name, "IN_PROGRESS", at, null,
             rotation % 3, 0, false, BuildConfig.VERSION_NAME, checkNotNull(adaptiveDao.config()).epochId))
-        val difficulty = adaptiveDao.difficulties().associateBy { it.type }
+        val difficulty = checkNotNull(adaptiveDao.difficulty(LearningScope.COMBINED))
         dao.insertSlots(session.plan.mapIndexed { index, type ->
             val c = session.slotConditions[index]
-            val d = difficulty.getValue(type.name)
             SlotEntity(state.sessionId, index, type.name, c.memoryLimitMs, c.waitMs, c.optionCount, c.solveLimitMs,
-                d.conditionVersion, appliedDecisionId = d.appliedDecisionId)
+                difficulty.conditionVersion, appliedDecisionId = difficulty.appliedDecisionId)
         })
         dao.setProgress(ProgressEntity(activeCycleId = state.sessionId))
         saveInsideTransaction(state, runToken, at)
@@ -144,7 +143,7 @@ class LearningRepository(private val db: LearningDatabase) {
                     learningStatus = "EXCLUDED_INVALID"))
             }
             dao.updateCycle(cycle.copy(status = "STOPPED"))
-            adaptive.applyPending(at)
+            adaptiveDao.stopCycleBundle(id)
         }
         if (dao.progress()?.activeCycleId == id) dao.setProgress(ProgressEntity(activeCycleId = null))
     }
