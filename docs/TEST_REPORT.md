@@ -216,3 +216,28 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 - Room 스키마 v1 JSON을 커밋합니다. 첫 DB 버전이므로 이전 DB에서의 마이그레이션은 없으며, 향후 변경 시 기존 데이터를 보존하는 마이그레이션 테스트가 필요합니다.
 
 저장 공간 부족·손상된 DB 오류 대화상자의 실제 기기 오류 주입, 실물 Galaxy Tab A9+·TalkBack·시니어 사용성·API 26/36 실행은 아직 검증하지 않았습니다. 앱 삭제/데이터 지우기는 이번 보존 범위가 아닙니다. AI 묶음·적응 난이도·밴딧 학습값은 아직 미구현이며 현재는 후속 학습에 필요한 원본만 영구 보존합니다.
+
+## 2026-09-23 · 중앙 게임 화면과 하단 고정 진행 버튼
+
+사용자 후속 요청으로 열려 있는 PR #4에 게임 화면 배치를 개선했습니다. 정답 문구·큰 대상·안내·카운트다운을 가운데 배치하고 진행 버튼을 본문 스크롤에서 분리했습니다. 이동 버튼은 상단 일시정지 메뉴로 옮겼습니다.
+
+- `testDebugUnitTest`: 기존 엔진·사이클 **45개 통과**.
+- `connectedDebugAndroidTest`: **15개 통과**(Room 7 + UI 8), 실패 0.
+- 360×800dp·글자 200%·Wi-Fi/데이터 OFF에서 UI **8개 통과**, 실패 0. 고정 버튼·중앙 정답·일시정지 재생성도 같은 조건에서 통과했습니다. 검증 후 2560×1600px·글자 100%·원래 네트워크 설정으로 복원했습니다.
+- `assembleDebug`, 테스트 APK 생성, `lintDebug` 통과. Lint 오류 0·기존 버전 권고 14개 유지.
+- 본문을 스크롤해도 다음 버튼의 화면 좌표가 같고, 대상 아래에 위치하는지 검증했습니다. 정답 문구의 중심과 본문 영역 중심이 일치하는지도 검사했습니다.
+- 오답 시 남은 기회가 2번으로 바뀌고 선택 보기는 비활성화되며 추가 오답 문구가 없는지 확인했습니다.
+- 3초 대기 중 일시정지 → 3.5초 대기 후에도 보기/카운트다운/대상이 표시되지 않음 → Activity 재생성 후 메뉴 유지 → 새 문제로 재개해 1/10 유지와 새 문제 행 생성 → 홈 이동·저장 진행 유지까지 검증했습니다.
+- 이미 맞힌 결과에서 일시정지 후 계속하면 같은 정답 화면으로 돌아오는 것도 확인했습니다. 기본 10문제 완료와 Room 기록 검증을 함께 통과했습니다.
+
+태블릿의 실제 그림 연습에서 기억→3초 대기→오답 1회→정답→일시정지 화면을 캡처하고 검토했습니다. 기억 그림을 키우고, 정답 화면에서는 그림을 반복하지 않으며, 다음 버튼이 하단에 유지됩니다.
+
+![중앙 기억 화면과 고정 다음 버튼](screenshots/focused-memory-tablet.png)
+![큰 카운트다운](screenshots/focused-countdown-tablet.png)
+![중앙 정답 표시](screenshots/focused-correct-tablet.png)
+
+[오답 선택 후 보기](screenshots/focused-options-tablet.png) · [일시정지 메뉴](screenshots/focused-pause-tablet.png)
+
+[작은 화면·글자 200% 기억 화면](screenshots/focused-memory-largefont.png) · [큰 카운트다운](screenshots/focused-countdown-largefont.png) · [일시정지 메뉴](screenshots/focused-pause-largefont.png)
+
+전체 실행 로그는 `.artifacts/focused-play-verification.log`, 작은 화면 로그는 `.artifacts/focused-small-offline-tests.txt`입니다. 게임 엔진·Room 스키마·의존성 버전은 이번 화면 수정에서 변경하지 않았습니다. 실물 기기·TalkBack 등 앞 절의 미검증 범위는 그대로 남습니다.
