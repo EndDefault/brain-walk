@@ -21,3 +21,9 @@ keystore.properties
 .env
 .env.*
 !.env.example
+
+# Local ML environments, generated training runs and Python caches.
+__pycache__/
+*.py[cod]
+training/**/runs/
+training/**/generated/
