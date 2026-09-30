@@ -9,3 +9,7 @@ gradlew text eol=lf
 gradlew.bat text eol=crlf
 *.jar binary
 *.png binary
+*.otf binary
+# Preserve upstream font license text, including its original trailing spaces.
+licenses/Pretendard-OFL-1.1.txt text eol=lf whitespace=-blank-at-eol
+app/src/main/assets/licenses/Pretendard-OFL-1.1.txt text eol=lf whitespace=-blank-at-eol

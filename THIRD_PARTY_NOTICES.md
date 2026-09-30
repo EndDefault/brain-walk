@@ -1,6 +1,27 @@
 # 외부 자료와 라이선스
 
-확인일: 2026-09-23. 외부 이미지·음원·폰트 파일·학습 데이터가 없습니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 화면 글꼴은 Android의 시스템 기본 글꼴입니다. 게임 그림 16개와 색 구성은 `MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+확인일: 2026-09-30. 외부 폰트로 Pretendard 1.3.9를 포함합니다. 외부 이미지·음원·학습 데이터는 없습니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+
+## 앱에 포함한 글꼴
+
+| 항목 | 내용 |
+| --- | --- |
+| 글꼴·제작자 | Pretendard 1.3.9 · 길형진(Kil Hyung-jin) |
+| 공식 출처 | [Pretendard 저장소](https://github.com/orioncactus/pretendard), 태그 v1.3.9 / 커밋 `5c41199ea0024a9e0b2cb31735265056e5472d76` |
+| 원본 파일 | 해당 커밋의 `packages/pretendard/dist/public/static/Pretendard-Regular.otf`, `Pretendard-Bold.otf`, `Pretendard-Black.otf` |
+| 라이선스 | [SIL Open Font License 1.1 원문](https://github.com/orioncactus/pretendard/blob/5c41199ea0024a9e0b2cb31735265056e5472d76/LICENSE) |
+| 변경 여부 | 폰트 내용 수정·변환·서브셋 없음. Android 리소스 규칙에 맞춰 파일명만 소문자로 저장 |
+| 고지 보존 | [저장소 원문](licenses/Pretendard-OFL-1.1.txt) 및 APK의 `assets/licenses/Pretendard-OFL-1.1.txt`. 앱의 **게임 설명 → 글꼴 저작권·라이선스**에서 오프라인 열람 |
+
+사용한 v1.3.9의 라이선스 원문에 있는 저작권자 Kil Hyung-jin과 Reserved Font Name **Pretendard** 고지를 보존했습니다. 폰트 자체를 단독 판매하지 않으며 앱에 함께 배포합니다. 추후 폰트 내용을 수정한다면 OFL의 Reserved Font Name 조건을 다시 확인해야 합니다. 앱 코드는 폰트를 포함한다는 이유만으로 OFL로 바뀌지 않습니다.
+
+배포한 원본 확인용 SHA-256:
+
+```text
+pretendard_regular.otf  3FFBACDE6AB8411F1D2DB54BB9B1F0B3EE2A738932033722CF0388C06AED1C93
+pretendard_bold.otf     2E91915FAB54DF71CC9598EBF608B2BDB54C6FE3C066AC61DFF0BC44FCA71CC7
+pretendard_black.otf    94628B0BCEA8936B6E5C30D98D685EB9BBAFFB0FE2ED255542ECC656C248E021
+```
 
 ## 앱·테스트 라이브러리
 

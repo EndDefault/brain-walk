@@ -6,12 +6,32 @@
 
 ## 시각 기준
 
+- 한글 글꼴은 Pretendard 1.3.9의 원본 Regular·Bold·Black을 앱에 포함해 인터넷 없이 사용합니다. SIL OFL 1.1 원문과 저작권 고지는 [외부 자료·라이선스](../THIRD_PARTY_NOTICES.md)에 기록하며 게임 설명에서 열람합니다.
 - 크림색 바탕(#FFF9EA), 짙은 남색(#173B5E), 남색 버튼의 흰 글자로 읽기 편한 화면을 만듭니다. 게임의 색 기억 문제는 별도 팔레트를 사용합니다.
 - 메인은 게임 이름 ‘기억 산책’을 64sp 굵은 글자로 강조합니다. 감성 문구·카드 장식 대신 제목·구분선·큰 직사각형 버튼을 사용합니다.
 - 기록은 실제 수치와 날짜를 정렬해 보여주고 얇은 구분선과 간격으로 묶습니다. 모든 내용을 둥근 카드로 감싸지 않습니다.
 - 메인 버튼 글자는 30sp, 높이는 최소 88dp입니다. 본문 22sp, 보조 정보 20sp, 나머지 버튼 최소 64dp를 유지합니다. 시스템 글자 확대를 제한하지 않으며 200%와 좁은 화면에서 줄바꿈·세로 스크롤을 지원합니다.
 - 정오·선택 상태는 색상뿐 아니라 문구·테두리·표식으로 구분합니다. 소리나 애니메이션에만 필요한 정보를 담지 않습니다.
 - 새로운 그림·아이콘이 필요하면 직접 작성한 도형을 우선하고 외부 자산은 출처와 라이선스를 함께 관리합니다.
+
+## 공통 스타일과 화면 코드
+
+웹의 `global.css`에 해당하는 역할은 `ui/theme/`과 `ui/components/`가 나눠 담당합니다. 새 화면에서는 자체 글꼴·색·버튼을 다시 만들지 않고 아래 공통 기준을 사용합니다.
+
+| 수정할 내용 | 위치 |
+| --- | --- |
+| 배경·본문·버튼·테두리 색 | `ui/theme/Color.kt` |
+| 글꼴·굵기·크기·줄 높이 | `ui/theme/Type.kt`: `MaterialTheme.typography`, 게임 숫자는 `GameTextStyles` |
+| 간격·최소 버튼 높이·최대 화면 폭 | `ui/theme/Dimensions.kt`: `AppDimensions` |
+| 전체 앱에 스타일 연결·모서리 모양 | `ui/theme/Theme.kt`: `MemoryStepsTheme` |
+| 기본/큰 버튼, 채움/테두리 버튼, 대화상자 버튼 | `ui/components/ActionButton.kt` |
+| 스크롤 페이지·큰 화면 제목·구역 제목 | `ui/components/Page.kt` |
+| 게임의 그림·색·숫자 표시 | `ui/components/MemoryItemView.kt` |
+| 유형명·게임 조건 공통 문구 | `ui/components/TrainingText.kt` |
+
+기본 버튼은 22sp·최소 64dp, 큰 버튼은 30sp·최소 88dp입니다. 홈 메뉴와 게임 하단 진행 버튼은 큰 버튼을 사용합니다. 페이지/단계 제목은 38sp, 구역 제목은 28sp, 본문은 22sp, 보조 정보는 20sp입니다. 고정 높이로 글자를 자르지 않고 내용과 글자 배율에 맞춰 늘어납니다. 게임 팔레트와 Canvas 그림 좌표는 문제 콘텐츠이므로 UI 배경색·여백 기준과 분리합니다.
+
+`ui/screens/` 아래 `home`, `learn`, `records`, `guide`, `licenses`, `diagnostics`, `training` 폴더가 각 화면을 담당합니다. `MemoryStepsApp.kt`는 화면 이동과 앱 수준 대화상자를 연결합니다. 게임 폴더는 단계 배치(`TrainingScreen`), 표시(`TrainingIndicators`), 보기(`AnswerOptions`), 일시정지(`PauseMenu`), 결과(`TrainingSummary`), 상태 관리(`TrainingViewModel`)로 나눕니다. 게임 판정·난이도·DB 로직은 기존 `game/`, `difficulty/`, `ai/`, `data/`에 둡니다.
 
 ## 메인과 학습 선택
 

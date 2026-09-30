@@ -1,4 +1,4 @@
-package com.example.memorysteps.ui
+package com.example.memorysteps.ui.screens.training
 
 import android.app.Application
 import android.os.SystemClock

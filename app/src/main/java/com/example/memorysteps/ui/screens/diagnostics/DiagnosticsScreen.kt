@@ -1,4 +1,4 @@
-package com.example.memorysteps.ui
+package com.example.memorysteps.ui.screens.diagnostics
 
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -10,18 +10,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.memorysteps.R
 import com.example.memorysteps.data.AdaptiveCodec
 import com.example.memorysteps.difficulty.AlgorithmMode
-import com.example.memorysteps.game.GameConditions
+import com.example.memorysteps.ui.components.ActionButton
+import com.example.memorysteps.ui.components.Page
+import com.example.memorysteps.ui.components.PageTitle
+import com.example.memorysteps.ui.components.SectionTitle
+import com.example.memorysteps.ui.components.conditionsText
+import com.example.memorysteps.ui.screens.training.TrainingViewModel
 import java.util.Locale
 import org.json.JSONArray
-
-private fun seconds(ms: Long): String = if (ms % 1000 == 0L) (ms / 1000).toString() else String.format(Locale.KOREA, "%.1f", ms / 1000.0)
-
-@Composable
-internal fun conditionsText(conditions: GameConditions): String {
-    val solve = conditions.solveLimitMs?.let { stringResource(R.string.adaptive_seconds, seconds(it)) }
-        ?: stringResource(R.string.adaptive_unlimited)
-    return stringResource(R.string.adaptive_conditions, seconds(conditions.memoryLimitMs), seconds(conditions.waitMs), conditions.optionCount, solve)
-}
 
 /** Reachable only in debug builds. Diagnostic values never appear in the game itself. */
 @Composable
@@ -41,13 +37,13 @@ internal fun DiagnosticsScreen(model: TrainingViewModel, enabled: Boolean, onBac
         }
         ActionButton(stringResource(R.string.ai_back), onBack, primary = false)
         HorizontalDivider()
-        PageTitle("통합 학습값")
+        SectionTitle("통합 학습값")
         arms.forEach { arm ->
             Text(arm.action, style = MaterialTheme.typography.titleLarge)
             Text("적용 경험 ${arm.hasEverApplied} · 유효 횟수 ${decimal(arm.effectiveCount)} · 보상 합계 ${decimal(arm.rewardSum)}")
         }
         HorizontalDivider()
-        PageTitle("최근 판단 30개")
+        SectionTitle("최근 판단 30개")
         if (decisions.isEmpty()) Text("종합 게임의 10문제를 마치면 판단이 표시됩니다.")
         decisions.forEach { decision ->
             Text("종합 게임 · ${decision.action}", style = MaterialTheme.typography.titleLarge)

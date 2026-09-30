@@ -1,4 +1,4 @@
-package com.example.memorysteps.ui
+package com.example.memorysteps.ui.screens.records
 
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -8,6 +8,12 @@ import androidx.compose.ui.res.stringResource
 import com.example.memorysteps.R
 import com.example.memorysteps.data.*
 import com.example.memorysteps.game.GameType
+import com.example.memorysteps.ui.components.ActionButton
+import com.example.memorysteps.ui.components.Page
+import com.example.memorysteps.ui.components.PageTitle
+import com.example.memorysteps.ui.components.SectionTitle
+import com.example.memorysteps.ui.components.conditionsText
+import com.example.memorysteps.ui.components.typeName
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -24,14 +30,14 @@ fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, histo
             Text(stringResource(R.string.record_final, overview.finalCorrect, overview.problems))
         }
         HorizontalDivider()
-        PageTitle(stringResource(R.string.type_records))
+        SectionTitle(stringResource(R.string.type_records))
         GameType.entries.forEach { type ->
             val stats = types.firstOrNull { it.type == type.name }
             Text(if (stats == null) stringResource(R.string.type_empty, typeName(type))
                 else stringResource(R.string.summary_type, typeName(type), stats.firstCorrect, stats.problems))
         }
         HorizontalDivider()
-        PageTitle(stringResource(R.string.adaptive_heading))
+        SectionTitle(stringResource(R.string.adaptive_heading))
         Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium)
         profiles.forEach { profile ->
             Text(conditionsText(profile.difficulty.conditions()))
@@ -40,7 +46,7 @@ fun RecordsScreen(overview: LearningOverview, types: List<TypeStatistics>, histo
                 else stringResource(R.string.adaptive_next_game))
         }
         HorizontalDivider()
-        PageTitle(stringResource(R.string.recent_records))
+        SectionTitle(stringResource(R.string.recent_records))
         history.forEach { cycle ->
             val date = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(cycle.createdAt))
             Text(date, style = MaterialTheme.typography.titleLarge)

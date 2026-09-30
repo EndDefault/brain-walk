@@ -1,4 +1,4 @@
-package com.example.memorysteps.ui
+package com.example.memorysteps.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -19,14 +19,13 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import com.example.memorysteps.R
 import com.example.memorysteps.game.ColorPair
 import com.example.memorysteps.game.MemoryItem
 import com.example.memorysteps.game.NumberItem
 import com.example.memorysteps.game.PictureItem
 import com.example.memorysteps.game.PictureSymbol
+import com.example.memorysteps.ui.theme.GameTextStyles
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -46,7 +45,7 @@ internal fun MemoryItemView(item: MemoryItem, modifier: Modifier = Modifier, lar
     val ink = MaterialTheme.colorScheme.onSurface
     Box(modifier.clearAndSetSemantics { contentDescription = description }, contentAlignment = Alignment.Center) {
         if (item is NumberItem) {
-            Text(item.value.toString(), fontSize = if (large) 96.sp else 40.sp, fontWeight = FontWeight.Bold)
+            Text(item.value.toString(), style = if (large) GameTextStyles.targetNumber else GameTextStyles.optionNumber)
         } else Canvas(Modifier.fillMaxSize()) {
             val side = minOf(size.width, size.height)
             withTransform({
