@@ -2,6 +2,10 @@
 
 Android 태블릿에서 인터넷 없이 사용하는 시니어 기억력 게임입니다. 색·그림·숫자 훈련과 기기 내부 기록을 단계별 PR로 개발합니다.
 
+버튼·색상·간격·글꼴은 공통 테마/컴포넌트로 관리하며, Pretendard를 앱에 포함합니다. 글꼴의 SIL OFL 1.1 원문은 **게임 설명 → 글꼴 저작권·라이선스**에서 볼 수 있습니다. [공통 스타일 위치](docs/UI_DIRECTION.md#공통-스타일과-화면-코드)와 [고지·원본 출처](THIRD_PARTY_NOTICES.md)를 참고하세요.
+
+**현재 AI는 난이도 선택을 담당하고, 문제는 무작위 생성합니다.** 앞으로 AI가 앱의 재료·출제 도구와 최근 기록을 이용해 문제를 구성하는 역할은 [맞춤 출제 AI 정의](docs/AI_QUESTION_GENERATION.md)에 정리했습니다. 생성 모델은 아직 연결하지 않았습니다.
+
 현재 앱에서는 **학습하기 → 게임 시작 → 기억 → 대기 → 보기 선택 → 10문제 결과**까지 플레이하고 기록을 기기에 저장합니다. 메인은 큰 ‘기억 산책’ 제목과 **학습하기·학습 현황·게임 설명** 세 버튼으로 구성합니다.
 
 학습하기의 **게임 시작**은 색·그림·숫자를 섞은 정식 10문제입니다. 아래 **연습하기 → 색·그림·숫자**는 각 유형 10문제이며 정식 성적과 AI 학습 기록에서 제외합니다. 대상을 기억한 뒤 **다음**을 누르면 3초 대기 후 보기가 나타납니다. 크림색 바탕과 짙은 남색, 큰 글자·버튼을 사용합니다.
@@ -28,10 +32,12 @@ Windows 명령줄:
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
-.\gradlew.bat :app:connectedDebugAndroidTest
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:connectedDebugAndroidTest
 ```
 
 macOS/Linux에서는 `./gradlew`를 사용합니다. 첫 빌드는 Gradle과 의존성 다운로드를 위해 인터넷이 필요합니다. 앱 자체는 네트워크 권한 없이 실행됩니다.
+
+계측 테스트는 시작할 때 테스트 대상의 기록을 초기화하므로 위의 격리 설정을 사용합니다. 테스트 앱 ID는 `com.example.memorysteps.difficultyvalidation`이며 실제 플레이 앱과 DB가 분리됩니다. 격리 테스트 뒤 개인용 APK를 만들 때는 `-I` 없이 `:app:assembleDebug`를 실행합니다.
 
 한글 Windows 경로에서 JVM 테스트 클래스 로딩이 실패하는 Gradle 8 인코딩 문제를 피하도록 `file.encoding=COMPAT`를 적용했습니다. JDK 21의 시스템 문자셋을 사용하며 소스 파일은 UTF-8을 유지합니다. 자세한 환경과 제한은 [검증 보고서](docs/TEST_REPORT.md)에 기록했습니다.
 
@@ -64,8 +70,13 @@ app/src/main/
     difficulty/           통계·난이도 후보·복원 규칙
     ai/                   Discounted UCB 선택·할인 보상
     data/                 Room v3·원본/게임별 통합 학습/결정 저장·종료 후 복구
-    ui/                   메뉴·학습 현황·게임·ViewModel·개발 진단
-  res/                    한국어 문자열·앱 테마·직접 제작한 벡터 아이콘
+    ui/
+      MemoryStepsApp.kt    화면 이동·앱 대화상자
+      theme/              공통 색상·글꼴/크기·간격·테마 연결
+      components/         공통 버튼·페이지·게임 재료 표시·문구
+      screens/            home·learn·records·guide·licenses·diagnostics·training
+  res/                    한국어 문자열·Pretendard 폰트·직접 제작한 벡터 아이콘
+  assets/licenses/        앱에서 열람하는 폰트 저작권·라이선스 원문
 app/src/androidTest/      게임·AI 연결·마이그레이션·중복/롤백·화면 검증
 app/schemas/              버전별 Room 스키마
 app/src/test/             게임·난이도·밴딧 JVM 테스트
@@ -79,6 +90,7 @@ ViewModel + StateFlow와 Coroutines가 화면·저장 이벤트를 순서대로 
 
 - [기준 명세](docs/SPEC.md)
 - [AI 설계](docs/AI_DESIGN.md)
+- [도구를 사용하는 맞춤 출제 AI 정의 — 미구현](docs/AI_QUESTION_GENERATION.md)
 - [데이터 모델](docs/DATA_MODEL.md)
 - [게임 엔진과 화면 연결 계약](docs/GAME_ENGINE.md)
 - [규칙 검증 예제](docs/RULE_EXAMPLES.md)
