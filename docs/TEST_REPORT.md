@@ -352,3 +352,38 @@ UI·Android 생명주기 연결은 아직 없으므로 에뮬레이터의 게임
 디버그 앱/계측 APK 빌드와 Lint(오류 0)를 통과했습니다. 격리 패키지에서 기존 `sixteenOptionsAndTimedSolveRemainReachableWithLargeText` 테스트 1개를 실행해 통과했고, 2560×1600·320dpi·글자 100% 화면에서 제목/초 단위와 16개 보기 전체가 표시되는 캡처를 검토했습니다. 이번 변경에서 작은 화면/글자 확대 실기 검증을 다시 수행하지는 않았습니다. 로그는 `.artifacts/labeled-timer-build.log`, `.artifacts/labeled-timer-ui.log`, `.artifacts/labeled-timer-normal-build.log`입니다.
 
 ![남은 시간 제목과 초 단위가 표시된 풀이 화면](screenshots/labeled-timer-tablet.png)
+
+## 2026-09-30 · 공통 스타일·화면 분리·Pretendard 적용
+
+`ui/theme/`에 색상·글꼴/크기·간격을 모으고, `ui/components/`에 공통 버튼·페이지·게임 재료 표시를 둡니다. 화면은 `ui/screens/`에서 분리했습니다. 게임 ViewModel은 패키지 이동 외 코드 변경이 없으며 게임·난이도·DB 로직을 수정하지 않았습니다. Pretendard 1.3.9 원본 3개와 SIL OFL 1.1 고지를 포함합니다. 생성 모델 출제는 설계 문서만 추가했으며 실행 기능은 없습니다.
+
+| 확인 항목 | 결과 |
+| --- | --- |
+| JVM 단위 테스트 | 67개 통과, 실패/오류 0 |
+| 디버그·서명 전 릴리스 빌드 | 통과 |
+| Lint | 오류 0, SDK/도구/라이브러리 버전 알림 14개. 분리 후 미사용 문자열 4개 제거 |
+| 기본 에뮬레이터 1280×2856·480dpi·글자 100% | 메뉴 2 + 게임 흐름 6 + 적응형 UI 2, 총 10개 통과 |
+| 태블릿 가로 2560×1600·320dpi·글자 100% | 같은 UI 10개 통과. 풀이 시간 제목과 16개 보기 전체 표시, 하단 고정 버튼·정답 중앙 표시·일시정지·재생성/기록 보존 확인 |
+| 작은 화면 720×1600·320dpi(360×800dp)·글자 200% | 메뉴 2 + 적응형 UI 2, 총 4개 통과. 메뉴 이동 및 마지막/첫 보기까지 스크롤 접근 확인 |
+| 글꼴 고지 화면 | 홈 → 게임 설명 → 글꼴 저작권·라이선스 → 설명 복귀 확인. 원문 스크롤 표시 |
+| APK 자산 | 디버그/릴리스 APK 모두 폰트 3개 SHA-256 및 라이선스 내용이 저장소 원본과 일치 |
+
+UI 테스트는 API 37 에뮬레이터의 `com.example.memorysteps.difficultyvalidation` 패키지에서 실행했습니다. 실제 플레이 앱에 설치하거나 개인 DB를 초기화하지 않았습니다. 표시 크기·밀도·글자 배율은 검증 후 기존 설정으로 복원했습니다. 계측 테스트는 기존 앱과 분리하기 위해 다음 설정으로 빌드한 APK의 package/targetPackage를 확인하고 ADB로 실행했습니다.
+
+```powershell
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
+# 위와 같은 격리 패키지에서 재현할 UI 클래스
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.memorysteps.NavigationSmokeTest,com.example.memorysteps.TrainingFlowTest,com.example.memorysteps.AdaptiveUiTest'
+# 일반 앱 APK로 복귀
+.\gradlew.bat :app:assembleDebug :app:assembleRelease :app:lintDebug
+```
+
+이 변경에서 전체 데이터/마이그레이션 계측 테스트를 다시 실행하지는 않았습니다. 작은 화면·200%에서는 문구가 여러 줄로 나뉘고 모든 보기를 한 화면에 담지 못하므로 가로/세로 스크롤이 필요합니다. 스크롤 중에도 풀이 시간은 진행됩니다. 실물 태블릿·시니어 사용성·TalkBack 전체 흐름·AI 효과는 미검증입니다.
+
+로컬 로그: `.artifacts/ui-refactor-build.log`, `ui-refactor-tablet-tests.log`(기본 화면), `shared-ui-tablet-tests.log`, `shared-ui-largefont-tests.log`, `shared-ui-final-build.log`. 최종 디버그 APK SHA-256: `C123F8F7E758DCE4AF6054D0451E0FC225E5961BF52964339A40B5CA1D464E72`. 서명 전 릴리스: `B4D8C608A24D18886F15D237D5E8C0B9178513A01B3E10AC6DB1F31147CCA8D9`.
+
+![공통 글꼴과 큰 버튼의 홈](screenshots/focused-shared-home.png)
+
+[학습하기](screenshots/focused-shared-learn.png) · [태블릿 16개 보기](screenshots/shared-ui-options-tablet.png) · [학습 현황](screenshots/shared-ui-records-tablet.png) · [글자 200% 보기](screenshots/shared-ui-options-largefont.png) · [글자 200% 기록](screenshots/shared-ui-records-largefont.png) · [글꼴 라이선스](screenshots/focused-shared-licenses.png)
+
+학습 현황과 문제 캡처는 별도 테스트 앱에서 생성한 합성 기록입니다.
