@@ -1,6 +1,12 @@
 # 외부 자료와 라이선스
 
-확인일: 2026-09-30. 외부 폰트로 Pretendard 1.3.9를 포함합니다. 외부 이미지·음원·학습 데이터는 없습니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+확인일: 2026-09-30. 앱에는 외부 폰트 Pretendard 1.3.9를 포함합니다. 앱 밖의 출제 보정 실험에는 Qwen3-0.6B 사전 학습 모델을 사용합니다. 외부 이미지·음원·개인 학습 데이터는 없으며 추가 보정 자료는 직접 만든 가상 상황입니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+
+## 출제 모델 보정 실험
+
+공식 [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B)의 커밋 `c1899de289a04d12100db370d81485cdf75e47ca`를 사용합니다. 원본 [LICENSE](https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/LICENSE)는 Apache-2.0이며 [저장소 사본](licenses/Qwen3-0.6B/LICENSE.txt)에 보존합니다. 해당 버전 파일 목록에 별도 NOTICE는 없습니다. 원본 가중치는 수정하지 않고 로컬 캐시에 보관하며, 추가 학습한 LoRA 보정 가중치는 변경 사실·원본 버전·평가와 함께 별도 실험 산출물로 관리합니다. Qwen의 보증·제휴를 표시하지 않습니다.
+
+원본 `model.safetensors` SHA-256: `f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b`. 1.5GB 원본과 Python 실행 환경은 Git에 포함하지 않습니다. 학습 도구의 고정 직접 의존성은 `training/question_author/requirements.txt`에 기록하며 이 도구들은 Android 앱 런타임에 포함되지 않습니다. 모바일 모델로 변환·배포할 때는 변환된 파일과 사용하는 Android 런타임의 고지를 별도로 검증합니다.
 
 ## 앱에 포함한 글꼴
 
