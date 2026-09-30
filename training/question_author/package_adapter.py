@@ -68,6 +68,8 @@ def run(args):
         summaries.append(target.name)
     metadata = {
         "artifact_type": "lora_adapter_requires_base_model", "status": "EXPERIMENTAL",
+        "training_complete": report.get("training_complete", len(report.get("epochs", [])) == report.get("training", {}).get("epochs")),
+        "training_complete": report.get("training_complete", len(report.get("epochs", [])) == report.get("training", {}).get("epochs")),
         "production_ready": False, "android_integrated": False, "tablet_offline_verified": False,
         "base_model": config["base_model"], "base_revision": config["base_revision"],
         "base_weights_sha256": report["base_weights_sha256"], "license": config["base_license"],

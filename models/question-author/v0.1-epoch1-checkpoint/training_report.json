@@ -1,0 +1,61 @@
+{
+  "base": "Qwen/Qwen3-0.6B",
+  "base_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "base_weights_sha256": "f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b",
+  "training": {
+    "seed": 7391,
+    "epochs": 3,
+    "learning_rate": 0.0002,
+    "gradient_accumulation": 8,
+    "max_length": 2304
+  },
+  "lora": {
+    "rank": 16,
+    "alpha": 32,
+    "dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ]
+  },
+  "gpu": "NVIDIA GeForce RTX 3050",
+  "torch": "2.8.0+cu128",
+  "dtype": "torch.bfloat16",
+  "trainable_parameters": 2293760,
+  "seed": 7391,
+  "source": "synthetic_only",
+  "real_user_records_used": false,
+  "production_ready": false,
+  "epochs": [
+    {
+      "epoch": 1,
+      "train_loss": 0.78890917781896,
+      "validation_loss": 0.7351266118318371
+    }
+  ],
+  "data_sha256": {
+    "train": "ffd42f0ae8b0d520fe40e67bee523767482d9301e674e2f4240bfe8741cebf1c",
+    "validation": "36c905013bab3a7d7fdb90444c1f3ce62719470b67efdc94e342f69cf2c2cdc5",
+    "test": "9bb56a5fb2da68628ead7e39e07e98ca9c78eb3636ddf5b674fef9de27b2ebec"
+  },
+  "source_sha256": {
+    "build_data.py": "78107956e257d9ffea21cd047eeaa87f96e0eda1876d02309011b612c407bdf8",
+    "contract.py": "9d306e4839b0145139a5bacc30f5206b93c3febebb1f384ff40d978895574b30",
+    "evaluate.py": "afb14abe5b98d7940bdda33685fbb8ff99d01be388bd6c0167189d4fba5fef38",
+    "train.py": "a37832b58ebc8b0941272a3d524400f77b71f733f4331cae7bb32b1e2cf1320a"
+  },
+  "initial_validation_loss": 0.9832847993240973,
+  "selected_epoch": 1,
+  "elapsed_seconds": 1101.2223829999566,
+  "peak_cuda_memory_bytes": 4030173184,
+  "adapter_sha256": "3df6b5fc774e61a526a47b08e4303d1e6df3201d31ae03d2bb1ece70d59cf45c",
+  "training_complete": false,
+  "training_status": "PAUSED_BY_USER",
+  "completed_epochs": 1,
+  "planned_epochs": 3,
+  "interrupted_epoch": 2,
+  "last_logged_rows_in_interrupted_epoch": 48,
+  "optimizer_state_saved": false,
+  "exact_training_resume_available": false,
+  "checkpoint_note": "Epoch-1 weights only. Epoch-2 partial progress was not checkpointed. Continue with a fresh optimizer or rerun the original recipe; not an exact resume."
+}
