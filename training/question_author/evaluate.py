@@ -30,6 +30,7 @@ def summarize(results):
         "median_seconds": statistics.median(r["seconds"] for r in results),
         "max_seconds": max(r["seconds"] for r in results),
         "errors": dict(Counter(r["error"] for r in results if not r["valid"])),
+        "focus_outcomes": dict(Counter(f"{r['focus_expected']} -> {r.get('focus_predicted', 'INVALID_PLAN')}" for r in results)),
     }
 
 
@@ -39,9 +40,10 @@ def assess(row, raw, seconds):
     pair = context["records"][focus]["confusion"] if focus in context["records"] else None
     result = {"learner_id": row["learner_id"], "scenario": row["scenario"],
               "option_count": context["option_count"], "seconds": seconds,
-              "review_expected": bool(pair), "valid": False, "raw": raw}
+              "review_expected": bool(pair), "valid": False, "raw": raw, "focus_expected": focus}
     try:
         plan = validate_plan(context, parse_tool(raw))
+        result["focus_predicted"] = plan["focus"]
         result.update(quality(context, plan), valid=True)
     except (ValueError, TypeError, KeyError, RecursionError) as error:
         result["error"] = str(error)[:160] or type(error).__name__
@@ -76,7 +78,7 @@ def run(args):
     random_results = []
     from contract import tool_text
     for row in rows:
-        prompt = prompt_for(tokenizer, row["input"])
+        prompt = prompt_for(tokenizer, row["input"], record_rates=args.record_rates)
         tokens = tokenizer(prompt, return_tensors="pt", add_special_tokens=False).to(device)
         start = time.perf_counter()
         torch.cuda.synchronize()
@@ -106,6 +108,7 @@ def run(args):
             "device": torch.cuda.get_device_name(0), "decoding": "deterministic_greedy_non_thinking",
             "constraints": "tool_json_count_catalog_and_no_target_repetition" if args.constrained else "none",
             "forced_token_prefill": args.fast_constrained,
+            "record_rate_summary": args.record_rates,
             "max_new_tokens": args.max_new_tokens, "summary": summarize(results),
             "random_reference": summarize(random_results), "results": results,
             "per_scenario": {s: summarize([r for r in results if r["scenario"] == s]) for s in sorted({r["scenario"] for r in results})},
@@ -128,4 +131,5 @@ if __name__ == "__main__":
     parser.add_argument("--max-new-tokens", type=int, default=1536)
     parser.add_argument("--constrained", action="store_true")
     parser.add_argument("--fast-constrained", action="store_true")
+    parser.add_argument("--record-rates", action="store_true")
     run(parser.parse_args())

@@ -4,6 +4,7 @@ Training uses the same token boundaries as constrained generation. No expected
 focus or confusion answer is supplied to the inference-time grammar.
 """
 import re
+from collections import Counter
 
 import torch
 import torch.nn.functional as F
@@ -56,28 +57,41 @@ def encode_answer(tokenizer, context, plan):
     return ids + [tokenizer.eos_token_id], weights + [1.]
 
 
-def encode_rows(tokenizer, rows, max_length):
+def encode_rows(tokenizer, rows, max_length, record_rates=False, focus_only=False):
     result = []
+    counts = Counter(row["expected"]["focus"] for row in rows)
     for row in rows:
-        prompt = tokenizer.encode(prompt_for(tokenizer, row["input"]), add_special_tokens=False)
-        answer, weights = encode_answer(tokenizer, row["input"], row["expected"])
+        prompt = tokenizer.encode(prompt_for(tokenizer, row["input"], record_rates=record_rates), add_special_tokens=False)
+        if focus_only:
+            prefix = next(segments(row["input"]))[0]
+            prefix_ids = tokenizer.encode(prefix, add_special_tokens=False)
+            focus_ids = tokenizer.encode(compact(row["expected"]["focus"]), add_special_tokens=False)
+            # No EOS is taught here: normal question generation must follow the focus.
+            answer, weights = prefix_ids + focus_ids, [0.] * len(prefix_ids) + [1.] * len(focus_ids)
+        else:
+            answer, weights = encode_answer(tokenizer, row["input"], row["expected"])
         if len(prompt) + len(answer) > max_length:
             raise ValueError("Refusing to truncate decision-weighted training input")
-        result.append((prompt + answer, len(prompt), weights))
+        example_weight = len(rows) / (len(counts) * counts[row["expected"]["focus"]]) if focus_only else 1.
+        result.append((prompt + answer, len(prompt), weights, example_weight))
     return result
 
 
 def loss_for(model, row, device):
-    ids, prompt_length, weights = row
+    ids, prompt_length, weights = row[:3]
     # Predict only answer positions. Prompt tokens still condition the transformer,
     # but their unused vocabulary logits no longer consume training memory.
     tokens = torch.tensor([ids], dtype=torch.long, device=device)
-    positions = torch.arange(prompt_length - 1, len(ids) - 1, device=device)
+    supervised = [index for index, weight in enumerate(weights) if weight > 0]
+    if not supervised:
+        raise ValueError("No supervised answer positions")
+    offsets = torch.tensor(supervised, device=device)
+    positions = offsets + prompt_length - 1
     output = model(input_ids=tokens, attention_mask=torch.ones_like(tokens),
                    logits_to_keep=positions, use_cache=False)
-    targets = tokens[0, prompt_length:]
+    targets = tokens[0, offsets + prompt_length]
     per_token = F.cross_entropy(output.logits[0].float(), targets, reduction="none")
-    factors = torch.tensor(weights, dtype=per_token.dtype, device=device)
+    factors = torch.tensor([weights[index] for index in supervised], dtype=per_token.dtype, device=device)
     return (per_token * factors).sum() / factors.sum()
 
 
@@ -86,7 +100,7 @@ def validation_loss(model, encoded, device):
     model.eval()
     total, denominator = 0., 0.
     for row in encoded:
-        weight = sum(row[2])
+        weight = sum(row[2]) * (row[3] if len(row) > 3 else 1.)
         loss = loss_for(model, row, device)
         if not torch.isfinite(loss):
             raise ValueError("Non-finite validation loss")

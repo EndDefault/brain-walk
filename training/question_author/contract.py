@@ -68,9 +68,18 @@ def compact(value):
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
-def messages(context):
-    return [{"role": "system", "content": SYSTEM},
-            {"role": "user", "content": compact(context)}]
+def messages(context, record_rates=False):
+    view = context
+    instruction = SYSTEM
+    if record_rates:
+        # Derived statistics only: never include the expected focus/teacher answer.
+        view = {**context, "first_correct_percent": {
+            kind: round(100 * record["first_correct"] / record["n"], 4) if record["n"] else None
+            for kind, record in context["records"].items()}}
+        instruction += ("The supplied first_correct_percent values are percentages from 0 to 100. "
+                        "A 0.20 rate gap means 20 percentage points. Still check n >= 12 for EVERY type first.\n")
+    return [{"role": "system", "content": instruction},
+            {"role": "user", "content": compact(view)}]
 
 
 def tool_text(plan):

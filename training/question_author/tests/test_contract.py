@@ -7,11 +7,23 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_data import build, make_example
-from contract import CATALOG, TYPES, assert_game_catalog, expected_focus, parse_tool, quality, tool_text, validate_context, validate_plan
+from contract import CATALOG, TYPES, assert_game_catalog, expected_focus, messages, parse_tool, quality, tool_text, validate_context, validate_plan
 from constrained import QuestionGrammar
 
 
 class ContractTests(unittest.TestCase):
+    def test_optional_rate_summary_contains_counts_derived_statistics_only(self):
+        context = make_example("train", 2)["input"]
+        original = copy.deepcopy(context)
+        self.assertEqual(context, json.loads(messages(context)[1]["content"]))
+        view = json.loads(messages(context, record_rates=True)[1]["content"])
+        self.assertNotIn("focus", view)
+        for kind, record in context["records"].items():
+            self.assertEqual(round(100 * record["first_correct"] / record["n"], 4), view["first_correct_percent"][kind])
+        self.assertEqual(original, context)
+        cold = json.loads(messages(make_example("train", 0)["input"], record_rates=True)[1]["content"])
+        self.assertTrue(all(rate is None for rate in cold["first_correct_percent"].values()))
+
     def setUp(self):
         self.row = make_example("validation", 2)
         self.context = copy.deepcopy(self.row["input"])

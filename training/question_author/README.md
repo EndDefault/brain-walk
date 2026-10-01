@@ -75,6 +75,18 @@ $env:TRANSFORMERS_OFFLINE = '1'
 
 `evaluate.py --constrained --fast-constrained`는 모델이 선택할 수 없는 연속 형식 토큰을 한 번에 처리해 대기 시간을 줄입니다. 분기점의 유형/재료 선택은 모델 점수로 결정합니다. 작은 Qwen 모델에서 일반 제한 생성과 같은 선택을 확인했으며, 보고서의 `forced_token_prefill`로 실행 방식을 구분합니다. Android 런타임에 연결된 기능은 아닙니다.
 
+추가 2회 후 검증 30건에서는 형식 30/30, 주의 유형 18/30, 혼동 재출제 8/10이었습니다. 약한 유형을 `BALANCED`로 답하는 편향이 남아 **유형 판단 집중 보정**을 추가했습니다. `--record-rates`는 `first_correct/n`에서 계산한 백분율을 입력에 보탭니다. 0.20 비율 차이는 20퍼센트포인트임을 명시하고, 비교 횟수 조건은 유지합니다. 기대 유형·교사 정답은 추론 입력에 넣지 않습니다.
+
+`--focus-only`는 기존 출제 가중치에서 유형 출력 부분만 추가 학습합니다. 유형별 학습량 차이에 따른 편향을 줄이기 위해 클래스 빈도의 역수로 사례 비중을 조정합니다. 유형 다음에 문제 출력을 계속할 수 있도록 조기 종료 토큰을 가르치지 않습니다. 이 단계의 손실은 전체 출제 학습 손실과 다른 지표입니다.
+
+```powershell
+& $py -X utf8 training/question_author/package_adapter.py --run .artifacts/question-ai/continued-v2 --data-manifest .artifacts/question-ai/data/manifest.json --license licenses/Qwen3-0.6B/LICENSE.txt --output .artifacts/question-ai/continued-v2-parent
+& $py -X utf8 training/question_author/continue_training.py --base .artifacts/question-ai/base --base-manifest .artifacts/question-ai/base-manifest.json --data .artifacts/question-ai/data --initial-adapter .artifacts/question-ai/continued-v2-parent --output .artifacts/question-ai/focused-v3 --epochs 2 --record-rates --focus-only
+& $py -X utf8 training/question_author/evaluate.py --constrained --fast-constrained --record-rates --base .artifacts/question-ai/base --adapter .artifacts/question-ai/focused-v3/adapter --data .artifacts/question-ai/data/validation.jsonl --output .artifacts/question-ai/focused-v3-validation-fast.json
+```
+
+집중 보정 실행을 재개할 때도 `--record-rates --focus-only --epochs 2`를 그대로 사용하고 `--resume`을 추가합니다. 추론에서도 `--record-rates`를 유지합니다. 최종 시험 자료는 이 보정 판단에 사용하지 않았습니다.
+
 체크포인트 저장 방식은 [PyTorch 재개 안내](https://docs.pytorch.org/tutorials/recipes/recipes/saving_and_loading_a_general_checkpoint.html)와 [PEFT의 학습 가능한 어댑터 로딩](https://huggingface.co/docs/peft/v0.17.0/en/package_reference/peft_model)을 따릅니다.
 
 ### 최초 환경과 자료 준비

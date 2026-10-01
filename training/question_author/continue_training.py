@@ -39,7 +39,10 @@ def run(args):
         raise ValueError("Remove STOP_REQUESTED only when ready to resume")
     config = json.loads(Path(__file__).with_name("model_config.json").read_text())
     recipe = dict(config["training"], epochs=args.epochs,
-                  supervision="grammar_aligned_decisions_v1", focus_weight=30., review_weight=12., target_weight=3.)
+                  supervision="class_balanced_focus_v1" if args.focus_only else "grammar_aligned_decisions_v1",
+                  record_rates=args.record_rates, focus_only=args.focus_only,
+                  focus_weight=1. if args.focus_only else 30., review_weight=0. if args.focus_only else 12.,
+                  target_weight=0. if args.focus_only else 3.)
     base_manifest = json.loads(args.base_manifest.read_text(encoding="utf-8-sig"))
     verify(args.base, base_manifest, config)
     parent = json.loads((args.initial_adapter / "training_report.json").read_text())
@@ -72,7 +75,8 @@ def run(args):
     train_rows, valid_rows = (load_rows(args.data / f"{s}.jsonl") for s in ("train", "validation"))
     if {r["learner_id"] for r in train_rows} & {r["learner_id"] for r in valid_rows}:
         raise ValueError("Learner leakage across training and validation")
-    train, valid = (encode_rows(tokenizer, rows, recipe["max_length"]) for rows in (train_rows, valid_rows))
+    train, valid = (encode_rows(tokenizer, rows, recipe["max_length"], record_rates=args.record_rates,
+                               focus_only=args.focus_only) for rows in (train_rows, valid_rows))
     model = AutoModelForCausalLM.from_pretrained(args.base, local_files_only=True, trust_remote_code=False,
                                                 dtype=dtype, attn_implementation="sdpa").to(device)
     model = PeftModel.from_pretrained(model, args.initial_adapter, is_trainable=True, local_files_only=True)
@@ -101,7 +105,8 @@ def run(args):
         report = {
             "base": config["base_model"], "base_revision": config["base_revision"],
             "base_weights_sha256": parent["base_weights_sha256"], "training": recipe, "lora": config["lora"],
-            "parent_adapter_sha256": parent_hash, "parent_completed_epochs": parent["selected_epoch"],
+            "parent_adapter_sha256": parent_hash,
+            "parent_completed_epochs": parent.get("parent_completed_epochs", 0) + parent["selected_epoch"],
             "continuation_mode": "warm_start_new_optimizer_then_full_state_checkpoints",
             "gpu": torch.cuda.get_device_name(0), "torch": str(torch.__version__), "dtype": str(dtype),
             "trainable_parameters": sum(p.numel() for p in trainable), "seed": recipe["seed"],
@@ -139,7 +144,7 @@ def run(args):
             optimizer.zero_grad(set_to_none=True)
             for index in group:
                 row = train[index]
-                loss = loss_for(model, row, device)
+                loss = loss_for(model, row, device) * row[3]
                 if not torch.isfinite(loss):
                     raise ValueError("Non-finite training loss")
                 tokens = sum(row[2])
@@ -194,5 +199,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--checkpoint-every", type=int, default=5)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--record-rates", action="store_true", help="Supply percentages derived from counts, never teacher labels")
+    parser.add_argument("--focus-only", action="store_true", help="Class-balanced focus supervision; no end-of-answer token")
     parser.add_argument("--stop-after-steps", type=int, help="Orderly stop for a resume smoke test")
     run(parser.parse_args())

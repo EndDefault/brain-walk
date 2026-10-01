@@ -27,8 +27,8 @@ def digest(path):
     return h.hexdigest()
 
 
-def prompt_for(tokenizer, context):
-    return tokenizer.apply_chat_template(messages(context), tools=TOOLS, tokenize=False,
+def prompt_for(tokenizer, context, record_rates=False):
+    return tokenizer.apply_chat_template(messages(context, record_rates=record_rates), tools=TOOLS, tokenize=False,
                                          add_generation_prompt=True, enable_thinking=False)
 
 
