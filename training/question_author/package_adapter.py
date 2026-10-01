@@ -6,6 +6,7 @@ artifacts and derived synthetic reports, never a model cache or user database.
 import argparse
 from hashlib import sha256
 import json
+import math
 from pathlib import Path
 import shutil
 
@@ -59,6 +60,7 @@ def run(args):
     shutil.copyfile(args.license, args.output / "LICENSE.txt")
     shutil.copyfile(args.data_manifest, args.output / "data-manifest.json")
     summaries = []
+    release_checks = {}
     for name, original in evaluations:
         # Learner-level output is available in local reports; publish aggregates with no local paths.
         result = {k: v for k, v in original.items() if k not in ("results", "adapter")}
@@ -66,15 +68,26 @@ def run(args):
         target = args.output / name
         target.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         summaries.append(target.name)
+        test_split = manifest["splits"].get("test", {})
+        if (original["data_sha256"] == test_split.get("sha256")
+                and original["summary"]["requests"] == test_split.get("rows")):
+            checks = {}
+            for metric, required in config["release_gates"].items():
+                observed = original["summary"].get(metric, original.get(metric))
+                passed = observed is True if isinstance(required, bool) else (
+                    type(observed) in (int, float) and math.isfinite(observed) and observed >= required)
+                checks[metric] = {"observed": observed, "required": required, "passed": passed}
+            release_checks[name] = checks
     metadata = {
         "artifact_type": "lora_adapter_requires_base_model", "status": "EXPERIMENTAL",
-        "training_complete": report.get("training_complete", len(report.get("epochs", [])) == report.get("training", {}).get("epochs")),
         "training_complete": report.get("training_complete", len(report.get("epochs", [])) == report.get("training", {}).get("epochs")),
         "production_ready": False, "android_integrated": False, "tablet_offline_verified": False,
         "base_model": config["base_model"], "base_revision": config["base_revision"],
         "base_weights_sha256": report["base_weights_sha256"], "license": config["base_license"],
         "training_source": "authored_synthetic_profiles_only", "personal_records_included": False,
         "evaluation_reports": summaries,
+        "release_gate_evaluations": release_checks,
+        "release_decision": "NOT_APPROVED_FOR_APP",
         "files": {p.name: {"bytes": p.stat().st_size, "sha256": file_hash(p)} for p in args.output.iterdir() if p.is_file()},
     }
     (args.output / "manifest.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")

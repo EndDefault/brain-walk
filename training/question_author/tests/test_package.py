@@ -99,6 +99,23 @@ class PackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Evaluation data"):
             run(self.args)
 
+    def test_format_success_does_not_hide_failed_focus_and_device_gates(self):
+        self.write(self.args.data_manifest, {"source": "synthetic_only", "splits": {
+            "test": {"sha256": "test-fixture", "rows": 1}}})
+        self.evaluation["summary"].update(structural_valid_rate=1., focus_accuracy=.6,
+                                         no_recent_or_repeated_target_rate=1., confusion_review_rate=.8)
+        self.evaluation["tablet_offline_verified"] = False
+        self.write_evaluation()
+        with redirect_stdout(io.StringIO()):
+            run(self.args)
+        manifest = json.loads((self.args.output / "manifest.json").read_text())
+        checks = manifest["release_gate_evaluations"]["evaluation.json"]
+        self.assertTrue(checks["structural_valid_rate"]["passed"])
+        self.assertFalse(checks["focus_accuracy"]["passed"])
+        self.assertFalse(checks["tablet_offline_verified"]["passed"])
+        self.assertEqual("NOT_APPROVED_FOR_APP", manifest["release_decision"])
+        self.assertFalse(manifest["production_ready"])
+
 
 if __name__ == "__main__":
     unittest.main()
