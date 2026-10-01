@@ -1,6 +1,6 @@
 # 공통 출제 모델 보정 실험
 
-2026-09-30 현재: 사용자 요청으로 2회차 도중 학습을 중지했습니다. [완료된 1회차 체크포인트](../../models/question-author/v0.1-epoch1-checkpoint/README.md)와 [재개 메모](../../docs/QUESTION_MODEL_HANDOFF.md)를 보관합니다. 최종 출제 평가는 아직 없습니다.
+2026-10-01: [보관한 1회차 체크포인트](../../models/question-author/v0.1-epoch1-checkpoint/README.md)에서 추가 학습을 재개했습니다. 이전 실행에는 옵티마이저 상태가 없으므로 첫 재개는 가중치를 이어받고 새 옵티마이저로 시작합니다. 새 실행부터는 중간 학습 상태도 저장합니다.
 
 목표는 **한 사람의 플레이를 외운 모델을 배포하지 않고, 여러 기록 패턴을 해석해 문제를 구성하는 공통 모델을 만드는 것**입니다. 이 폴더는 기기에서 수집한 기록을 읽지 않습니다. 초기 실험은 직접 작성한 가상 사용자 데이터만 사용합니다. 실제 사용자에게 맞는 출제나 인지 효과를 검증한 학습 데이터가 아닙니다.
 
@@ -50,6 +50,34 @@
 `model_config.json`의 배포 기준은 실험 시작 전에 기록합니다. 최종 모델의 높은 형식 통과율만으로 승격하지 않고, 유형 선택·혼동 반영·대상 다양성과 오프라인 태블릿 실행을 확인합니다. 실물 검증 결과가 없으면 `production_ready=false`입니다.
 
 ## 재현
+
+### 1회차 모델의 추가 보정과 재개
+
+1회차 모델은 검증 첫 10건의 기본 생성에서 형식 5/10건을 통과했지만 모든 유형 판단을 `BALANCED`로 출력했습니다. 토큰 제한을 적용하면 형식은 10/10건을 통과했으나 유형 판단은 1/10건, 기록된 혼동 재출제는 1/3건이었습니다. 형식 제한만으로 기록 해석 능력을 얻지는 못했습니다.
+
+`continue_training.py`는 같은 300개 자료로 추가 2회를 학습합니다. 무작위 오답 나열에 학습이 치우치지 않도록 주의 유형 토큰 30배, 혼동 대상/보기 12배, 나머지 기억 대상 3배의 비중을 둡니다. 토큰 경계도 제한 생성과 맞춥니다. 이는 검증 결과를 바탕으로 정한 보정 가설이며 성능 향상은 별도 생성 평가로 확인합니다. **이 가중 손실은 이전 1회차의 일반 토큰 손실과 직접 비교할 수 없습니다.**
+
+```powershell
+$py = '.local-tools/question-ai-venv/Scripts/python.exe'
+$env:HF_HUB_OFFLINE = '1'
+$env:TRANSFORMERS_OFFLINE = '1'
+& $py -X utf8 training/question_author/continue_training.py --base .artifacts/question-ai/base --base-manifest .artifacts/question-ai/base-manifest.json --data .artifacts/question-ai/data --initial-adapter models/question-author/v0.1-epoch1-checkpoint --output .artifacts/question-ai/continued-v2 --epochs 2
+# 중지한 같은 실행은 위 명령에 --resume을 붙입니다.
+```
+
+새 스크립트는 5개 옵티마이저 단계마다 `resume.pt`를 원자적으로 교체합니다. 현재/최선의 보정 가중치, 옵티마이저, 학습률 스케줄러, 난수 상태, 다음 자료 위치를 저장합니다. 갑자기 종료되면 마지막 체크포인트 이후의 진행만 다시 처리합니다. 실행 폴더에 `STOP_REQUESTED`라는 파일을 만들면 현재 단계가 끝날 때 저장하고 정상 종료합니다. 재개할 때는 그 파일을 제거한 후 `--resume`을 사용합니다. 완료한 실행은 자동으로 재학습하지 않습니다. 원본 모델·자료·학습 코드·설정이 달라지면 중간 재개를 거부합니다.
+
+실제 1단계 학습 후 프로세스를 종료하고 `next_row=8`부터 복원되는 것을 확인했습니다. 작은 로컬 LoRA 모델로도 중지/복원 후 가중치·손실·스케줄이 연속 실행과 같은지 검사합니다. 다른 하드웨어에서 수치까지 동일하다는 뜻은 아닙니다.
+
+```powershell
+& $py -X utf8 -m unittest discover -s training/question_author/tests_ml -v
+```
+
+`evaluate.py --constrained --fast-constrained`는 모델이 선택할 수 없는 연속 형식 토큰을 한 번에 처리해 대기 시간을 줄입니다. 분기점의 유형/재료 선택은 모델 점수로 결정합니다. 작은 Qwen 모델에서 일반 제한 생성과 같은 선택을 확인했으며, 보고서의 `forced_token_prefill`로 실행 방식을 구분합니다. Android 런타임에 연결된 기능은 아닙니다.
+
+체크포인트 저장 방식은 [PyTorch 재개 안내](https://docs.pytorch.org/tutorials/recipes/recipes/saving_and_loading_a_general_checkpoint.html)와 [PEFT의 학습 가능한 어댑터 로딩](https://huggingface.co/docs/peft/v0.17.0/en/package_reference/peft_model)을 따릅니다.
+
+### 최초 환경과 자료 준비
 
 Python 3.12, 이 실험의 CUDA GPU 환경을 사용합니다. 개발 PC에서 모델/도구를 처음 받는 데는 인터넷이 필요합니다. 이후 학습·평가는 로컬 파일만 사용합니다. 시스템 환경을 덮어쓰지 않도록 별도 가상 환경을 만듭니다.
 

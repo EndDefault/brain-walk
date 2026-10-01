@@ -13,6 +13,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from contract import expected_focus, parse_tool, quality, random_plan, validate_plan
 from constrained import QuestionGrammar
+from constrained_decode import generate_constrained
 from train import digest, load_rows, prompt_for
 
 
@@ -48,6 +49,8 @@ def assess(row, raw, seconds):
 
 
 def run(args):
+    if args.fast_constrained and not args.constrained:
+        raise ValueError("--fast-constrained requires --constrained")
     if args.output.exists():
         raise ValueError("Evaluation report already exists; use a new filename")
     config = json.loads(Path(__file__).with_name("model_config.json").read_text())
@@ -79,8 +82,12 @@ def run(args):
         torch.cuda.synchronize()
         constraints = {"prefix_allowed_tokens_fn": QuestionGrammar(tokenizer, row["input"], tokens.input_ids.shape[1])} if args.constrained else {}
         with torch.inference_mode():
-            output = model.generate(**tokens, max_new_tokens=args.max_new_tokens, do_sample=False,
-                                    pad_token_id=tokenizer.eos_token_id, use_cache=True, **constraints)
+            if args.fast_constrained:
+                output = generate_constrained(model, tokens.input_ids, constraints["prefix_allowed_tokens_fn"],
+                                              args.max_new_tokens, tokenizer.eos_token_id)
+            else:
+                output = model.generate(**tokens, max_new_tokens=args.max_new_tokens, do_sample=False,
+                                        pad_token_id=tokenizer.eos_token_id, use_cache=True, **constraints)
         torch.cuda.synchronize()
         seconds = time.perf_counter() - start
         raw = tokenizer.decode(output[0, tokens.input_ids.shape[1]:], skip_special_tokens=True).strip()
@@ -98,6 +105,7 @@ def run(args):
             "source": "synthetic_only", "data_sha256": sha256(args.data.read_bytes()).hexdigest(),
             "device": torch.cuda.get_device_name(0), "decoding": "deterministic_greedy_non_thinking",
             "constraints": "tool_json_count_catalog_and_no_target_repetition" if args.constrained else "none",
+            "forced_token_prefill": args.fast_constrained,
             "max_new_tokens": args.max_new_tokens, "summary": summarize(results),
             "random_reference": summarize(random_results), "results": results,
             "per_scenario": {s: summarize([r for r in results if r["scenario"] == s]) for s in sorted({r["scenario"] for r in results})},
@@ -119,4 +127,5 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int)
     parser.add_argument("--max-new-tokens", type=int, default=1536)
     parser.add_argument("--constrained", action="store_true")
+    parser.add_argument("--fast-constrained", action="store_true")
     run(parser.parse_args())
