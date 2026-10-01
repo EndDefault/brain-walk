@@ -6,7 +6,7 @@ Android 태블릿에서 인터넷 없이 사용하는 시니어 기억력 게임
 
 **현재 AI는 난이도 선택을 담당하고, 문제는 무작위 생성합니다.** 앞으로 AI가 앱의 재료·출제 도구와 최근 기록을 이용해 문제를 구성하는 역할은 [맞춤 출제 AI 정의](docs/AI_QUESTION_GENERATION.md)에 정리했습니다. 생성 모델은 아직 연결하지 않았습니다.
 
-배포 전에 공통 출제 모델을 보정하는 [로컬 학습·평가 실험](training/question_author/README.md)을 추가했습니다. 여러 가상 사용자 상황을 사용하며 개인 플레이 DB를 학습하거나 Git에 포함하지 않습니다. 현재 사용자 요청으로 학습을 중지하고 [1회차 보정 모델](models/question-author/v0.1-epoch1-checkpoint/README.md)을 보관했습니다. **학습·출제 평가·앱 연결은 미완료**이며 [재개 메모](docs/QUESTION_MODEL_HANDOFF.md)에 다음 작업을 기록했습니다.
+배포 전에 공통 출제 모델을 보정하는 [로컬 학습·평가 실험](training/question_author/README.md)을 진행했습니다. 여러 가상 사용자 상황을 사용하며 개인 플레이 DB를 학습하거나 Git에 포함하지 않습니다. 2026-10-01 추가 학습과 분리 시험을 완료해 [v0.2 실험 모델](models/question-author/v0.2-common-experimental/README.md)을 보관했습니다. **약한 유형 판단 성능이 부족해 앱 배포는 보류합니다.** [평가 결과](docs/QUESTION_MODEL_REPORT.md)와 [작업 상태](docs/QUESTION_MODEL_HANDOFF.md)를 확인할 수 있습니다.
 
 현재 앱에서는 **학습하기 → 게임 시작 → 기억 → 대기 → 보기 선택 → 10문제 결과**까지 플레이하고 기록을 기기에 저장합니다. 메인은 큰 ‘기억 산책’ 제목과 **학습하기·학습 현황·게임 설명** 세 버튼으로 구성합니다.
 

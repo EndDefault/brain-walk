@@ -1,0 +1,10 @@
+{
+  "kind": "focus_probe_not_full_plan",
+  "examples": true,
+  "adapter_sha256": "7efd310878a09d108ba1538e3b747328ea50e41892a1936b8c6927ea27e23744",
+  "data_sha256": "36c905013bab3a7d7fdb90444c1f3ce62719470b67efdc94e342f69cf2c2cdc5",
+  "requests": 30,
+  "accuracy": 0.2,
+  "seconds": 3.8545857998542488,
+  "source": "synthetic_only"
+}

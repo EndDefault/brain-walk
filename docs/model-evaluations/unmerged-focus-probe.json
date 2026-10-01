@@ -1,0 +1,13 @@
+{
+  "kind": "focus_probe_not_full_plan",
+  "examples": false,
+  "tool_context": true,
+  "record_rates": true,
+  "keep_adapter": true,
+  "adapter_sha256": "8190cb723fd11519ccd5e0a6c95936f46fb0d084be9e2f0d9be5f168d56fb022",
+  "data_sha256": "36c905013bab3a7d7fdb90444c1f3ce62719470b67efdc94e342f69cf2c2cdc5",
+  "requests": 30,
+  "accuracy": 0.23333333333333334,
+  "seconds": 10.037432999815792,
+  "source": "synthetic_only"
+}
