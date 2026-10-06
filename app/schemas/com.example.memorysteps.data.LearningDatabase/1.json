@@ -1,0 +1,431 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "ba1eddcb4b1234a4f02634dcbe84973c",
+    "entities": [
+      {
+        "tableName": "training_cycles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mode` TEXT NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `completedAt` INTEGER, `rotationIndex` INTEGER NOT NULL, `currentSlot` INTEGER NOT NULL, `showSummary` INTEGER NOT NULL, `appVersion` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rotationIndex",
+            "columnName": "rotationIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "currentSlot",
+            "columnName": "currentSlot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "showSummary",
+            "columnName": "showSummary",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appVersion",
+            "columnName": "appVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "cycle_slots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cycleId` TEXT NOT NULL, `slotIndex` INTEGER NOT NULL, `type` TEXT NOT NULL, `memoryMs` INTEGER NOT NULL, `waitMs` INTEGER NOT NULL, `optionCount` INTEGER NOT NULL, `solveMs` INTEGER, `conditionVersion` TEXT NOT NULL, `finalizedProblemId` TEXT, PRIMARY KEY(`cycleId`, `slotIndex`), FOREIGN KEY(`cycleId`) REFERENCES `training_cycles`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "cycleId",
+            "columnName": "cycleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slotIndex",
+            "columnName": "slotIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memoryMs",
+            "columnName": "memoryMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "waitMs",
+            "columnName": "waitMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "optionCount",
+            "columnName": "optionCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "solveMs",
+            "columnName": "solveMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "conditionVersion",
+            "columnName": "conditionVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finalizedProblemId",
+            "columnName": "finalizedProblemId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "cycleId",
+            "slotIndex"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cycle_slots_finalizedProblemId",
+            "unique": true,
+            "columnNames": [
+              "finalizedProblemId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cycle_slots_finalizedProblemId` ON `${TABLE_NAME}` (`finalizedProblemId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "training_cycles",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cycleId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "problem_attempts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `cycleId` TEXT NOT NULL, `slotIndex` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `runToken` TEXT NOT NULL, `generatorVersion` TEXT NOT NULL, `content` TEXT NOT NULL, `generatedAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `phase` TEXT NOT NULL, `status` TEXT NOT NULL, `outcome` TEXT, `invalidReason` TEXT, `actualMemoryMs` INTEGER, `usedNextButton` INTEGER NOT NULL, `solveElapsedMs` INTEGER, `firstChoiceMs` INTEGER, `firstCorrect` INTEGER NOT NULL, `finalCorrect` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, `learningStatus` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`cycleId`, `slotIndex`) REFERENCES `cycle_slots`(`cycleId`, `slotIndex`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleId",
+            "columnName": "cycleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slotIndex",
+            "columnName": "slotIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runToken",
+            "columnName": "runToken",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatorVersion",
+            "columnName": "generatorVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "content",
+            "columnName": "content",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAt",
+            "columnName": "generatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "outcome",
+            "columnName": "outcome",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "invalidReason",
+            "columnName": "invalidReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "actualMemoryMs",
+            "columnName": "actualMemoryMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "usedNextButton",
+            "columnName": "usedNextButton",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "solveElapsedMs",
+            "columnName": "solveElapsedMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "firstChoiceMs",
+            "columnName": "firstChoiceMs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "firstCorrect",
+            "columnName": "firstCorrect",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finalCorrect",
+            "columnName": "finalCorrect",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attempts",
+            "columnName": "attempts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "learningStatus",
+            "columnName": "learningStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_problem_attempts_cycleId_slotIndex_revision",
+            "unique": true,
+            "columnNames": [
+              "cycleId",
+              "slotIndex",
+              "revision"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_problem_attempts_cycleId_slotIndex_revision` ON `${TABLE_NAME}` (`cycleId`, `slotIndex`, `revision`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "cycle_slots",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cycleId",
+              "slotIndex"
+            ],
+            "referencedColumns": [
+              "cycleId",
+              "slotIndex"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "choice_attempts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`problemId` TEXT NOT NULL, `attemptIndex` INTEGER NOT NULL, `optionId` TEXT NOT NULL, `correct` INTEGER NOT NULL, `elapsedMs` INTEGER NOT NULL, `monotonicAt` INTEGER NOT NULL, `wallClockAt` INTEGER NOT NULL, PRIMARY KEY(`problemId`, `attemptIndex`), FOREIGN KEY(`problemId`) REFERENCES `problem_attempts`(`id`) ON UPDATE NO ACTION ON DELETE NO ACTION )",
+        "fields": [
+          {
+            "fieldPath": "problemId",
+            "columnName": "problemId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "attemptIndex",
+            "columnName": "attemptIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "optionId",
+            "columnName": "optionId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "correct",
+            "columnName": "correct",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elapsedMs",
+            "columnName": "elapsedMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "monotonicAt",
+            "columnName": "monotonicAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wallClockAt",
+            "columnName": "wallClockAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "problemId",
+            "attemptIndex"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_choice_attempts_problemId_optionId",
+            "unique": true,
+            "columnNames": [
+              "problemId",
+              "optionId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_choice_attempts_problemId_optionId` ON `${TABLE_NAME}` (`problemId`, `optionId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "problem_attempts",
+            "onDelete": "NO ACTION",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "problemId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "training_progress",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`singleton` INTEGER NOT NULL, `activeCycleId` TEXT, PRIMARY KEY(`singleton`))",
+        "fields": [
+          {
+            "fieldPath": "singleton",
+            "columnName": "singleton",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeCycleId",
+            "columnName": "activeCycleId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "singleton"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ba1eddcb4b1234a4f02634dcbe84973c')"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+// Use with -I tools/isolated-tests.init.gradle to keep instrumentation separate
+// from the development app and its saved learning records.
+allprojects {
+    plugins.withId('com.android.application') {
+        androidComponents.finalizeDsl { extension ->
+            extension.defaultConfig.applicationId = 'com.example.memorysteps.difficultyvalidation'
+            extension.defaultConfig.testApplicationId = 'com.example.memorysteps.difficultyvalidation.test'
+        }
+    }
+}

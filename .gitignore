@@ -1,0 +1,42 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.idea/
+*.iml
+.local-tools/
+.artifacts/
+.externalNativeBuild/
+.cxx/
+captures/
+*.hprof
+*.jks
+*.keystore
+keystore.properties
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+
+# Local ML environments, generated training runs and Python caches.
+__pycache__/
+*.py[cod]
+training/**/runs/
+training/**/generated/
+app/src/main/assets/models/*.gguf
+
+# Keep only representative submission screenshots in documentation.
+# Local captures, evaluation dumps and work notes belong in .artifacts/.
+/docs/model-evaluations/
+/docs/screenshots/*
+!/docs/screenshots/actual-ai-game-tablet.png
+!/docs/screenshots/submission-home-tablet.png
+!/docs/screenshots/submission-learn-tablet.png
+!/docs/screenshots/submission-records-tablet.png
+!/docs/screenshots/submission-guide-tablet.png
+!/docs/screenshots/submission-learn-largefont.png
+!/docs/screenshots/submission-trend-largefont.png

@@ -1,0 +1,6 @@
+# Python 3.12. Install torch from the official cu128 index first on the training PC.
+torch==2.8.0
+transformers==4.57.1
+peft==0.17.1
+accelerate==1.10.1
+safetensors==0.6.2

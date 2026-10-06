@@ -1,0 +1,77 @@
+{
+  "contract": "question-author-v1",
+  "source": "synthetic_only",
+  "split_unit": "learner",
+  "limitations": "Rule-authored targets teach the output contract; no evidence of clinical or real-user benefit.",
+  "splits": {
+    "train": {
+      "rows": 300,
+      "sha256": "ffd42f0ae8b0d520fe40e67bee523767482d9301e674e2f4240bfe8741cebf1c",
+      "scenarios": {
+        "cold_start": 30,
+        "sparse": 30,
+        "color_weak": 30,
+        "picture_weak": 30,
+        "number_weak": 30,
+        "all_low": 30,
+        "all_strong": 30,
+        "slow_correct": 30,
+        "close_rates": 30,
+        "unequal_counts": 30
+      },
+      "option_counts": {
+        "4": 60,
+        "6": 60,
+        "9": 60,
+        "12": 60,
+        "16": 60
+      }
+    },
+    "validation": {
+      "rows": 30,
+      "sha256": "36c905013bab3a7d7fdb90444c1f3ce62719470b67efdc94e342f69cf2c2cdc5",
+      "scenarios": {
+        "cold_start": 3,
+        "sparse": 3,
+        "color_weak": 3,
+        "picture_weak": 3,
+        "number_weak": 3,
+        "all_low": 3,
+        "all_strong": 3,
+        "slow_correct": 3,
+        "close_rates": 3,
+        "unequal_counts": 3
+      },
+      "option_counts": {
+        "4": 6,
+        "6": 6,
+        "9": 6,
+        "12": 6,
+        "16": 6
+      }
+    },
+    "test": {
+      "rows": 50,
+      "sha256": "9bb56a5fb2da68628ead7e39e07e98ca9c78eb3636ddf5b674fef9de27b2ebec",
+      "scenarios": {
+        "cold_start": 5,
+        "sparse": 5,
+        "color_weak": 5,
+        "picture_weak": 5,
+        "number_weak": 5,
+        "all_low": 5,
+        "all_strong": 5,
+        "slow_correct": 5,
+        "close_rates": 5,
+        "unequal_counts": 5
+      },
+      "option_counts": {
+        "4": 10,
+        "6": 10,
+        "9": 10,
+        "12": 10,
+        "16": 10
+      }
+    }
+  }
+}
