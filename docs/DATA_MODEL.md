@@ -1,6 +1,6 @@
 # 데이터 모델
 
-Room v3의 실제 구현입니다. 기준은 [SPEC.md](SPEC.md), 학습 규칙은 [AI_DESIGN.md](AI_DESIGN.md)에 있습니다. 한 기기에 한 사용자이며 `memory-steps.db`를 사용합니다. `app/schemas/com.example.memorysteps.data.LearningDatabase/1.json`~`3.json`을 보존합니다.
+Room v4의 실제 구현입니다. 기준은 [SPEC.md](SPEC.md), 학습 규칙은 [AI_DESIGN.md](AI_DESIGN.md)에 있습니다. 한 기기에 한 사용자이며 `memory-steps.db`를 사용합니다. `app/schemas/com.example.memorysteps.data.LearningDatabase/1.json`~`4.json`을 보존합니다.
 
 ## 게임과 공통 학습
 
@@ -17,6 +17,7 @@ AI 테이블의 기존 type 열은 학습 범위 키로 사용합니다. 신규 
 | problem_attempts | UUID PK. 슬롯/교체 순번·runToken·대상/보기 순서 JSON·생성 버전·실제 시간·정오·시도·무효 사유·학습 포함 상태 |
 | choice_attempts | (problemId, attemptIndex) PK, (problemId, optionId) UNIQUE. 선택·정오·누적 시간·단조/날짜 시각 |
 | training_progress | singleton=1. 현재 진행 사이클 ID |
+| authored_plans | UUID PK, nullable cycleId UNIQUE. 요청 키·10문제 콘텐츠·출제 출처·모델 버전·생성 시간·대체 사유·사용한 게임 ID |
 | algorithm_epochs | UUID PK. BANDIT/COMPARISON과 시작/종료 시각 |
 | algorithm_config | singleton=1. 현재 epochId와 learningScope=COMBINED |
 | difficulty_states | type PK. 공통 조건·conditionVersion·appliedDecisionId |
@@ -56,9 +57,9 @@ ViewModel은 입력 시각을 먼저 잡고 저장 이벤트를 직렬 처리합
 
 명시적인 진행 종료는 사이클 STOPPED와 묶음 CLOSED_BY_CYCLE_STOPPED를 함께 저장합니다. 완료 성적은 보존하지만 10개 미만으로 판단/보상을 만들지 않으며 다음 게임에 부분 기록을 넘기지 않습니다. 이전 적용 결정의 보상 연결은 다음 온전한 완료 게임까지 유지합니다. STOPPED는 종합 회전을 진행하지 않습니다.
 
-## v1/v2 업그레이드
+## v1/v2/v3 업그레이드
 
-Room AutoMigration 1→2→3은 기존 원본과 AI 테이블을 모두 보존합니다. v3는 algorithm_config.learningScope를 PER_TYPE 기본값으로 추가하고 learning_bundles.cycleId를 nullable로 추가합니다. 파괴적 초기화는 없습니다.
+Room AutoMigration 1→2→3→4는 기존 원본과 AI 테이블을 모두 보존합니다. v3는 algorithm_config.learningScope를 PER_TYPE 기본값으로 추가하고 learning_bundles.cycleId를 nullable로 추가합니다. v4는 authored_plans를 추가합니다. 파괴적 초기화는 없습니다. 출제안 준비·검증·단일 게임 소비는 [Android 출제 모델 연결](ANDROID_QUESTION_AUTHOR.md)을 따릅니다.
 
 최초 Repository 초기화는 기존 PER_TYPE 범위의 OPEN 묶음·대기 판단·미보상 연결을 SCOPE_CHANGE 종료 상태로 보관하고 이전 epoch를 닫습니다. 기본 조건(기억 20초·대기 3초·보기 4개·풀이 무제한), 학습값 0인 COMBINED 정책과 새 epoch를 한 트랜잭션으로 생성합니다. 이전 단축량·보상·원본을 새로운 정책에 합산하거나 소급 학습하지 않습니다.
 
@@ -66,6 +67,6 @@ Room AutoMigration 1→2→3은 기존 원본과 AI 테이블을 모두 보존�
 
 ## 모드와 화면
 
-디버그에서 진행 중 게임이 없을 때 BANDIT/COMPARISON을 바꿉니다. 새 epoch를 만들고 보상 대기를 닫되 공통 난이도·복원 이력·기존 통합 학습값은 유지합니다. 이전 유형별 보관 행은 수정하지 않습니다.
+앱 UI의 알고리즘 전환 버튼은 제거했습니다. 검증용 Repository API는 진행 중 게임이 없을 때 BANDIT/COMPARISON을 바꿀 수 있습니다. 새 epoch를 만들고 보상 대기를 닫되 공통 난이도·복원 이력·기존 통합 학습값은 유지합니다. 이전 유형별 보관 행은 수정하지 않습니다.
 
-학습 현황은 전체 성적·유형별 참고 성적·최근 30회와 공통 난이도 한 개를 표시합니다. 개발 진단은 통합 정책의 최근 판단/후보/보상/행동별 학습값만 조회합니다. 수식은 게임 화면에 표시하지 않습니다. 조건별 비교·효과음/환경 설정은 후속 범위이며 아직 DataStore 의존성은 없습니다.
+학습 현황은 전체 성적·유형별 참고 성적·최근 30회와 공통 난이도 한 개를 표시합니다. 개발 진단 화면은 제거했으며 학습 이력은 DB에 보존합니다. 수식은 게임 화면에 표시하지 않습니다. 조건별 비교·효과음/환경 설정은 후속 범위이며 아직 DataStore 의존성은 없습니다.

@@ -15,4 +15,4 @@ Qwen3-0.6B에 이 게임의 출제 도구 형식을 추가로 학습한 LoRA 보
 
 옵티마이저·스케줄러·난수 상태를 저장하지 않아 중지한 바로 그 단계의 **정확한 재개는 지원하지 않습니다**. 이 가중치를 초기값으로 추가 학습하거나 동일한 자료로 원래 실험을 다시 실행할 수 있습니다. 기존 `train.py`는 원본에서 새 학습을 시작하므로 가중치를 이어 학습할 때는 재개 경로를 먼저 추가해야 합니다.
 
-[다음 작업 및 재개 메모](../../../docs/QUESTION_MODEL_HANDOFF.md) · [학습 보고서](training_report.json) · [파일 검증값](manifest.json)
+[추가 학습 결과와 현재 상태](../../../docs/QUESTION_MODEL_REPORT.md) · [학습 보고서](training_report.json) · [파일 검증값](manifest.json)

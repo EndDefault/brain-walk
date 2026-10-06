@@ -71,14 +71,15 @@ app/src/main/
     game/                 문제 모델·세 유형 생성·판정·10문제 사이클
     difficulty/           통계·난이도 후보·복원 규칙
     ai/                   Discounted UCB 선택·할인 보상
-    data/                 Room v3·원본/게임별 통합 학습/결정 저장·종료 후 복구
+    data/                 Room v4·원본/통합 학습/출제 계획 저장·종료 후 복구
     ui/
       MemoryStepsApp.kt    화면 이동·앱 대화상자
       theme/              공통 색상·글꼴/크기·간격·테마 연결
       components/         공통 버튼·페이지·게임 재료 표시·문구
       screens/            home·learn·records·guide·training
   res/                    한국어 문자열·Pretendard 폰트·직접 제작한 벡터 아이콘
-  assets/licenses/        APK에 보존하는 폰트 저작권·라이선스 원문
+  assets/models/          오프라인 출제 모델·프롬프트·체크섬
+  assets/licenses/        APK에 보존하는 폰트·모델·실행 엔진 고지
 app/src/androidTest/      게임·AI 연결·마이그레이션·중복/롤백·화면 검증
 app/schemas/              버전별 Room 스키마
 app/src/test/             게임·난이도·밴딧 JVM 테스트
@@ -89,17 +90,21 @@ training/question_author/ 공통 출제 모델의 합성 자료·학습·평가�
 
 ViewModel + StateFlow와 Coroutines가 화면·저장 이벤트를 순서대로 처리합니다. 답변·묶음·AI 보상·결정·게임 완료를 한 Room 트랜잭션으로 저장합니다. 개발용 AI 확인 화면과 진입 버튼은 디버그·릴리스 모두 제거했습니다. 기존 난이도 조절·학습 데이터는 그대로 보존합니다. DataStore는 실제 환경 설정 기능을 추가할 때 도입합니다. Room은 보존 마이그레이션을 사용하며 파괴적 초기화를 하지 않습니다.
 
-## 문서와 개발 순서
+## 문서
+
+`docs/`에는 현재 명세·설계·평가 요약·검증 결과와 대표 화면 7장만 유지합니다. 개발 중 캡처, 모델 실험의 중간 JSON, 작업 인계 메모와 로그는 Git에서 제외한 `.artifacts/`에 보관합니다. 이전 개발 단계의 문서는 Git 이력에서 확인할 수 있습니다.
 
 - [기준 명세](docs/SPEC.md)
 - [AI 설계](docs/AI_DESIGN.md)
-- [도구를 사용하는 맞춤 출제 AI 설계](docs/AI_QUESTION_GENERATION.md)
+- [Android 출제 모델 연결](docs/ANDROID_QUESTION_AUTHOR.md)
+- [모델 학습·평가 결과](docs/QUESTION_MODEL_REPORT.md)
 - [데이터 모델](docs/DATA_MODEL.md)
 - [게임 엔진과 화면 연결 계약](docs/GAME_ENGINE.md)
 - [규칙 검증 예제](docs/RULE_EXAMPLES.md)
 - [화면 디자인 방향](docs/UI_DIRECTION.md)
 - [검증 보고서](docs/TEST_REPORT.md)
 - [결정 기록](docs/DECISIONS.md)
+- [의존성 목록](docs/DEPENDENCIES.md)
 - [외부 자료·라이선스](THIRD_PARTY_NOTICES.md)
 
 클래식 메뉴·기록 보존 PR #4 병합 후 AI를 연결했으며, 최신 사용자 결정에 따라 게임별 합산 판단과 공통 난이도를 적용했습니다. 실물 태블릿과 시니어 사용성 검증, 조건별 성과 비교·효과음/설정은 남아 있습니다. 개발 중인 PR은 `develop`을 대상으로 하며, 의존하는 앞 PR이 병합된 뒤 최신 `develop`에서 다음 브랜치를 만듭니다.

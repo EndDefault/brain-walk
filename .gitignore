@@ -28,3 +28,15 @@ __pycache__/
 training/**/runs/
 training/**/generated/
 app/src/main/assets/models/*.gguf
+
+# Keep only representative submission screenshots in documentation.
+# Local captures, evaluation dumps and work notes belong in .artifacts/.
+/docs/model-evaluations/
+/docs/screenshots/*
+!/docs/screenshots/actual-ai-game-tablet.png
+!/docs/screenshots/submission-home-tablet.png
+!/docs/screenshots/submission-learn-tablet.png
+!/docs/screenshots/submission-records-tablet.png
+!/docs/screenshots/submission-guide-tablet.png
+!/docs/screenshots/submission-learn-largefont.png
+!/docs/screenshots/submission-trend-largefont.png

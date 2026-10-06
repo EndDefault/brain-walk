@@ -1,8 +1,8 @@
 # 난이도·AI 설계
 
-이 문서는 **현재 구현된 밴딧 난이도 선택**을 설명합니다. 사용자 기록과 앱의 재료·도구를 이용하는 생성 모델 출제는 [AI_QUESTION_GENERATION.md](AI_QUESTION_GENERATION.md)에 별도로 정의했으며 아직 구현하지 않았습니다. 지금 문제 내용은 `ProblemGenerator`가 무작위로 구성합니다.
+이 문서는 **현재 구현된 밴딧 난이도 선택**을 설명합니다. 정식 게임의 기억 대상·오답 보기 구성은 [Android 출제 모델](ANDROID_QUESTION_AUTHOR.md)이 담당합니다. `ProblemGenerator`는 연습, 중단 문항 교체, 사용자가 선택한 기본 출제에 사용합니다.
 
-상태: 최신 사용자 결정인 **게임 1회 합산 판단 + 공통 난이도**를 Room v3에 연결했습니다. 기준은 [SPEC.md](SPEC.md) 7~14절입니다. 수치 예제는 [RULE_EXAMPLES.md](RULE_EXAMPLES.md), 실행 결과는 [TEST_REPORT.md](TEST_REPORT.md)에 있습니다. 가상 입력은 알고리즘 확인용이며 인지 효과 검증 결과가 아닙니다.
+상태: **게임 1회 합산 판단 + 공통 난이도**를 Room에 연결했으며 현재 DB는 출제 계획 저장을 추가한 v4입니다. 기준은 [SPEC.md](SPEC.md) 7~14절입니다. 수치 예제는 [RULE_EXAMPLES.md](RULE_EXAMPLES.md), 실행 결과는 [TEST_REPORT.md](TEST_REPORT.md)에 있습니다. 가상 입력은 알고리즘 확인용이며 인지 효과 검증 결과가 아닙니다.
 
 ## 통계와 후보
 
