@@ -1,4 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.security.MessageDigest
+import groovy.json.JsonSlurper
 
 plugins {
     alias(libs.plugins.android.application)
@@ -11,13 +13,15 @@ android {
     namespace = "com.example.memorysteps"
     compileSdk = 36
     buildToolsVersion = "36.0.0"
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "com.example.memorysteps"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -33,6 +37,7 @@ android {
         abortOnError = true
     }
     sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    androidResources { noCompress += "gguf" }
 }
 
 kotlin {
@@ -75,3 +80,20 @@ dependencies {
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
+
+val verifyQuestionModel by tasks.registering {
+    val model = file("src/main/assets/models/question-author-v2-q8.gguf")
+    val manifest = file("src/main/assets/models/question-author-v2.json")
+    inputs.files(model, manifest)
+    doLast {
+        check(model.isFile) { "Run tools/download_android_model.ps1 or tools/export_android_model.py before building the AI app." }
+        val expected = JsonSlurper().parse(manifest) as Map<*, *>
+        val digest = MessageDigest.getInstance("SHA-256")
+        model.inputStream().use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) { val n = input.read(buffer); if (n < 0) break; digest.update(buffer, 0, n) }
+        }
+        check(digest.digest().joinToString("") { "%02x".format(it) } == expected["sha256"]) { "Question model checksum mismatch" }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyQuestionModel) }

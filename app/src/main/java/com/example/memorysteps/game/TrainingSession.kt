@@ -19,6 +19,7 @@ data class SessionCheckpoint(
     val completed: List<CompletedProblem>,
     val showSummary: Boolean,
     val slotConditions: List<GameConditions> = List(10) { problem.conditions },
+    val plannedProblems: List<MemoryProblem>? = null,
 )
 
 class TrainingSnapshot internal constructor(
@@ -48,10 +49,12 @@ class TrainingSession(
     private val practice: Boolean = false,
     private val restored: SessionCheckpoint? = null,
     conditionsByType: Map<GameType, GameConditions> = emptyMap(),
+    plannedProblems: List<MemoryProblem>? = null,
 ) {
+    private val prepared = restored?.plannedProblems ?: plannedProblems
     private val sessionId = restored?.sessionId ?: UUID.randomUUID().toString()
     val plan: List<GameType> = frozenCopy(
-        restored?.plan ?: if (practice) listOf(requireNotNull(mode.singleType) { "Practice requires one selected type" })
+        restored?.plan ?: prepared?.map { it.type } ?: if (practice) listOf(requireNotNull(mode.singleType) { "Practice requires one selected type" })
         else mode.singleType?.let { type -> List(10) { type } } ?: run {
             require(completedMixedCycles >= 0)
             val extraType = GameType.entries[completedMixedCycles % 3]
@@ -61,13 +64,16 @@ class TrainingSession(
     val slotConditions: List<GameConditions> = frozenCopy(restored?.slotConditions ?: plan.map { conditionsByType[it] ?: conditions })
     private var index = restored?.index ?: 0
     private var round = restored?.let { GameRound.restore(it.problem, clock, it.result) }
-        ?: GameRound(generator.generate(plan[index], slotConditions[index]), clock)
+        ?: GameRound(prepared?.get(index) ?: generator.generate(plan[index], slotConditions[index]), clock)
     private val completed = restored?.completed?.toMutableList() ?: mutableListOf()
     private var showSummary = restored?.showSummary ?: false
 
     init {
         require(plan.size == (if (practice) 1 else 10) && index in plan.indices)
         require(slotConditions.size == plan.size)
+        require(prepared == null || (!practice && prepared.size == plan.size && prepared.indices.all {
+            prepared[it].type == plan[it] && prepared[it].conditions == slotConditions[it]
+        }))
         require(restored == null || (restored.mode == mode && restored.problem.type == plan[index]))
     }
 
@@ -94,7 +100,7 @@ class TrainingSession(
         if (!result.valid) return state
         if (index == plan.lastIndex) showSummary = true else {
             index++
-            round = GameRound(generator.generate(plan[index], slotConditions[index]), clock)
+            round = GameRound(prepared?.get(index) ?: generator.generate(plan[index], slotConditions[index]), clock)
         }
         return state
     }

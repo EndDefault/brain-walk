@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.example.memorysteps.BuildConfig
 import com.example.memorysteps.game.*
 import com.example.memorysteps.difficulty.AlgorithmMode
+import com.example.memorysteps.ai.author.AuthorRequest
 
 class LearningRepository(private val db: LearningDatabase) {
     val dao = db.learningDao()
@@ -21,6 +22,20 @@ class LearningRepository(private val db: LearningDatabase) {
     }
 
     suspend fun changeAlgorithm(mode: AlgorithmMode, at: Long): Boolean = db.withTransaction { adaptive.changeMode(mode, at) }
+
+    suspend fun startAuthored(request: AuthorRequest, planId: String, clock: MonotonicClock, runToken: String, at: Long): TrainingSession = db.withTransaction {
+        val plans = QuestionPlanRepository(db)
+        check(plans.request(at)?.key == request.key) { "Stale question plan" }
+        val row = checkNotNull(db.authoredPlanDao().get(planId))
+        check(row.requestKey == request.key && row.cycleId == null)
+        val problems = plans.decode(row, List(10) { request.conditions })
+        check(problems.map { it.type } == request.slots)
+        val session = TrainingSession(TrainingMode.MIXED, dao.completedMixedCycles(), clock,
+            conditions = request.conditions, plannedProblems = problems)
+        create(session, runToken, at)
+        check(db.authoredPlanDao().consume(row.id, session.state.sessionId) == 1)
+        session
+    }
 
     suspend fun create(session: TrainingSession, runToken: String, at: Long) = db.withTransaction {
         val state = session.state
@@ -121,7 +136,10 @@ class LearningRepository(private val db: LearningDatabase) {
         val slot = slots[cycle.currentSlot]
         SessionCheckpoint(id, TrainingMode.valueOf(cycle.mode), slots.map { GameType.valueOf(it.type) },
             cycle.currentSlot, ProblemContentCodec.decode(current, slot), result(current, slot), completed, cycle.showSummary,
-            slots.map { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) })
+            slots.map { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) },
+            db.authoredPlanDao().forCycle(id)?.let { plan ->
+                QuestionPlanRepository(db).decode(plan, slots.map { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) })
+            })
     }
 
     private suspend fun result(problem: ProblemEntity, slot: SlotEntity): RoundResult {

@@ -28,7 +28,7 @@ class AdaptiveMigrationTest {
         val expectedContent = createVersionOneFixture()
         val upgraded = LearningDatabase.open(context, name).also { db = it }
         val records = upgraded.learningDao()
-        // Opening the DAO triggers both migrations and Room's v3 schema validation.
+        // Opening the DAO triggers preserving migrations and Room's current schema validation.
         assertEquals(15, records.problemCount())
         assertEquals(expectedContent, records.problem("legacy-p-13")!!.content)
         assertEquals(1, records.choices("legacy-p-13").size)
@@ -108,6 +108,16 @@ class AdaptiveMigrationTest {
         assertEquals("LEGACY_SCOPE_RECORD_ONLY", upgraded.learningDao().problem(game.state.problem.id)!!.learningStatus)
         val next = repository.startFormal(TrainingMode.MIXED, clock, "new-process", ++now)
         assertTrue(next.slotConditions.all { it == GameConditions() })
+    }
+
+    @Test fun versionThreeUpgradePreservesGameplayAndAddsAnEmptyAuthorCache() = runBlocking {
+        val expected = createVersionOneFixture(version = 3)
+        val upgraded = LearningDatabase.open(context, name).also { db = it }
+        assertEquals(15, upgraded.learningDao().problemCount())
+        assertEquals(expected, upgraded.learningDao().problem("legacy-p-13")!!.content)
+        assertEquals("legacy-cycle-1", upgraded.learningDao().progress()!!.activeCycleId)
+        assertNull(upgraded.authoredPlanDao().forCycle("legacy-cycle-1"))
+        assertNull(upgraded.authoredPlanDao().ready("missing"))
     }
 
     private fun createVersionOneFixture(version: Int = 1): String {

@@ -1,6 +1,13 @@
 # 외부 자료와 라이선스
 
-확인일: 2026-09-30. 앱에는 외부 폰트 Pretendard 1.3.9를 포함합니다. 앱 밖의 출제 보정 실험에는 Qwen3-0.6B 사전 학습 모델을 사용합니다. 외부 이미지·음원·개인 학습 데이터는 없으며 추가 보정 자료는 직접 만든 가상 상황입니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+확인일: 2026-10-06. 앱에는 Pretendard 1.3.9, Qwen3-0.6B에 공통 LoRA v0.2를 병합·Q8_0 변환한 출제 모델, llama.cpp 네이티브 런타임을 포함합니다. 외부 이미지·음원·개인 학습 데이터는 없으며 추가 보정 자료는 직접 만든 가상 상황입니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+
+## Android에 포함한 출제 모델·런타임
+
+- 모델: 아래 고정 원본에 공통 LoRA v0.2를 병합한 뒤 GGUF Q8_0으로 변환했습니다. 변경 산출물의 해시는 `app/src/main/assets/models/question-author-v2.json`에 보관합니다. 모델 Apache-2.0 원문은 APK의 `assets/licenses/Qwen3-Apache-2.0.txt`에 포함합니다.
+- 런타임: [llama.cpp](https://github.com/ggml-org/llama.cpp/tree/5e03bdd8700948b9c41c54dd1b00f28a2aebc03f) 고정 커밋을 수정 없이 CPU 정적 라이브러리로 빌드하고 직접 작성한 JNI에 연결합니다. [MIT 원문](licenses/llama.cpp-MIT.txt)과 저작권 고지를 APK에도 보존합니다. HTTP 서버·도구·KleidiAI는 빌드하지 않습니다.
+- C++ 런타임: Android NDK 28.2.13676358의 libc++를 포함합니다. 배포물의 `NOTICE.toolchain`을 APK의 `assets/licenses/Android-NDK-toolchain-NOTICE.txt`에 보존합니다.
+- 고지는 배포 파일에 포함하며 게임 메뉴에 개발/라이선스 버튼을 다시 추가하지 않습니다.
 
 ## 출제 모델 보정 실험
 

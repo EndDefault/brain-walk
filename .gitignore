@@ -27,3 +27,4 @@ __pycache__/
 *.py[cod]
 training/**/runs/
 training/**/generated/
+app/src/main/assets/models/*.gguf

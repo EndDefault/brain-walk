@@ -107,11 +107,12 @@ interface LearningDao {
 @Database(entities = [CycleEntity::class, SlotEntity::class, ProblemEntity::class, ChoiceEntity::class, ProgressEntity::class,
     AlgorithmEpochEntity::class, AlgorithmConfigEntity::class, DifficultyEntity::class, BundleEntity::class,
     BundleMemberEntity::class, DecisionEntity::class, BanditArmEntity::class, RewardEntity::class,
-    ReductionEntity::class, RestorationEntity::class],
-    version = 3, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)])
+    ReductionEntity::class, RestorationEntity::class, AuthoredPlanEntity::class],
+    version = 4, exportSchema = true, autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4)])
 abstract class LearningDatabase : RoomDatabase() {
     abstract fun learningDao(): LearningDao
     abstract fun adaptiveDao(): AdaptiveDao
+    abstract fun authoredPlanDao(): AuthoredPlanDao
     companion object {
         @Volatile private var instance: LearningDatabase? = null
         fun get(context: Context): LearningDatabase = instance ?: synchronized(this) {
