@@ -31,7 +31,7 @@ class TrainingSnapshot internal constructor(
     val showSummary: Boolean,
     val practice: Boolean,
 ) {
-    val total: Int get() = 10
+    val total: Int get() = if (practice) 1 else 10
     val complete: Boolean get() = completed.size == total
     val firstCorrect: Int get() = completed.count { it.result.firstChoiceCorrect }
     val finalCorrect: Int get() = completed.count { it.result.finalCorrect }
@@ -51,7 +51,8 @@ class TrainingSession(
 ) {
     private val sessionId = restored?.sessionId ?: UUID.randomUUID().toString()
     val plan: List<GameType> = frozenCopy(
-        restored?.plan ?: mode.singleType?.let { type -> List(10) { type } } ?: run {
+        restored?.plan ?: if (practice) listOf(requireNotNull(mode.singleType) { "Practice requires one selected type" })
+        else mode.singleType?.let { type -> List(10) { type } } ?: run {
             require(completedMixedCycles >= 0)
             val extraType = GameType.entries[completedMixedCycles % 3]
             GameType.entries.flatMap { type -> List(if (type == extraType) 4 else 3) { type } }.shuffled(random)
@@ -65,7 +66,7 @@ class TrainingSession(
     private var showSummary = restored?.showSummary ?: false
 
     init {
-        require(plan.size == 10 && index in plan.indices)
+        require(plan.size == (if (practice) 1 else 10) && index in plan.indices)
         require(slotConditions.size == plan.size)
         require(restored == null || (restored.mode == mode && restored.problem.type == plan[index]))
     }

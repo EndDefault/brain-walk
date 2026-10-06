@@ -5,11 +5,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TrainingSessionTest {
-    private class Fixture(mode: TrainingMode = TrainingMode.MIXED, cycle: Int = 0) {
+    private class Fixture(mode: TrainingMode = TrainingMode.MIXED, cycle: Int = 0, practice: Boolean = false) {
         var now = 0L
         private var id = 0
         val session = TrainingSession(mode, cycle, MonotonicClock { now },
-            ProblemGenerator(Random(12), ProblemIdSource { "problem-${id++}" }), Random(5))
+            ProblemGenerator(Random(12), ProblemIdSource { "problem-${id++}" }), Random(5), practice = practice)
         fun solve(correct: Boolean = true) {
             val problem = session.state.problem
             session.memoryShown(problem.id)
@@ -37,6 +37,41 @@ class TrainingSessionTest {
         TrainingMode.entries.filter { it.singleType != null }.forEach { mode ->
             assertEquals(List(10) { mode.singleType }, Fixture(mode).session.plan)
         }
+    }
+
+    @Test fun eachPracticeTypeEndsAfterOneAnswerWithoutCreatingAnotherQuestion() {
+        TrainingMode.entries.filter { it.singleType != null }.forEach { mode ->
+            listOf(true, false).forEach { correct ->
+                val f = Fixture(mode, practice = true)
+                val id = f.session.state.problem.id
+                assertEquals(listOf(mode.singleType), f.session.plan)
+                assertEquals(1, f.session.state.total)
+                assertFalse(f.session.state.complete)
+                f.solve(correct)
+                assertTrue(f.session.state.complete)
+                assertEquals(if (correct) 1 else 0, f.session.state.firstCorrect)
+                repeat(3) { f.session.advance(id); f.session.tick(); f.session.interrupt() }
+                assertEquals(id, f.session.state.problem.id)
+                assertEquals(1, f.session.state.completed.size)
+                assertEquals(1, f.session.state.questionNumber)
+            }
+        }
+    }
+
+    @Test fun interruptedPracticeStillHasOneUnfinishedQuestionAfterResume() {
+        val f = Fixture(TrainingMode.NUMBER, practice = true)
+        val original = f.session.state.problem
+        f.session.memoryShown(original.id)
+        f.session.interrupt()
+        assertFalse(f.session.state.complete)
+        f.session.advance(original.id)
+        assertFalse(f.session.state.showSummary)
+        f.session.resume(original.id)
+        assertNotEquals(original.id, f.session.state.problem.id)
+        assertEquals(1, f.session.state.total)
+        assertTrue(f.session.state.completed.isEmpty())
+        f.solve()
+        assertTrue(f.session.state.complete)
     }
 
     @Test fun tenAnswersLeadToSummaryAndCannotAddEleventhQuestion() {

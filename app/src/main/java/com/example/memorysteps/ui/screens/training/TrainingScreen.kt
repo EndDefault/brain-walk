@@ -75,7 +75,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
             Row(Modifier.widthIn(max = AppDimensions.gameMaxWidth).fillMaxWidth().padding(horizontal = AppDimensions.pagePadding, vertical = AppDimensions.smallGap),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppDimensions.itemGap)) {
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.question_progress, state.questionNumber, typeName(state.problem.type)),
+                    Text(stringResource(R.string.question_progress, state.questionNumber, state.total, typeName(state.problem.type)),
                         Modifier.testTag("question-progress"), style = MaterialTheme.typography.titleLarge)
                     if (state.practice) Text(stringResource(R.string.practice_label), style = MaterialTheme.typography.bodyMedium)
                 }
@@ -160,6 +160,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                     state.showSummary -> R.string.home_button
                     phase == RoundPhase.READY || phase == RoundPhase.MEMORY -> R.string.next_button
                     phase == RoundPhase.FINISHED && state.round.result?.outcome == RoundOutcome.INTERRUPTED -> R.string.resume_question
+                    phase == RoundPhase.FINISHED && state.practice && state.complete -> R.string.practice_finish
                     phase == RoundPhase.FINISHED -> if (state.complete) R.string.show_results else R.string.next_question
                     else -> null
                 }
@@ -171,6 +172,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                                 state.showSummary -> onHome()
                                 phase == RoundPhase.MEMORY -> viewModel.next(id)
                                 state.round.result?.outcome == RoundOutcome.INTERRUPTED -> viewModel.resume(id)
+                                phase == RoundPhase.FINISHED && state.practice && state.complete -> onBack()
                                 phase == RoundPhase.FINISHED -> viewModel.advance(id)
                             }
                         },
