@@ -432,3 +432,29 @@ UI 테스트는 API 37 에뮬레이터의 `com.example.memorysteps.difficultyval
 [학습 선택](screenshots/submission-learn-tablet.png) · [게임 설명](screenshots/submission-guide-tablet.png) · [유지한 게임 UI](screenshots/submission-game-tablet.png) · [글자 200% 홈](screenshots/submission-home-largefont.png) · [글자 200% 그래프](screenshots/submission-trend-largefont.png)
 
 화면의 학습 수치는 테스트용 합성 기록이며 개인 기록은 Git에 포함하지 않았습니다.
+
+## 2026-10-06 · 연습을 1문제 체험으로 변경
+
+색·그림·숫자 연습은 선택한 유형 1문제로 끝납니다. 진행 표시는 `1 / 1문제`이며 정답 또는 기회 소진 후 **연습 마치기**를 눌러 학습 선택으로 돌아갑니다. 연습의 다음 문항/전체 결과 화면은 거치지 않습니다. 정식 게임은 기존 10문제이며 저장·난이도 정책·마이그레이션은 변경하지 않았습니다.
+
+| 확인 항목 | 결과 |
+| --- | --- |
+| JVM 단위 테스트 | 총 72개 통과. 세 유형의 정답/기회 소진, 중복 진행 방지, 중단한 연습의 1문제 재개 추가 확인 |
+| 태블릿 2560×1600·320dpi·글자 100% | 메뉴 2 + 적응형 UI 2 + 대시보드 1 + 게임 흐름 7 = 12개 통과 |
+| 작은 화면 720×1600·320dpi·글자 200% | 메뉴 2 + 적응형 UI 2 + 대시보드 1 + 연습 흐름 2 = 7개 통과 |
+| 연습 완료와 기록 제외 | 세 유형 모두 1문제 뒤 학습 선택 복귀, 정답/기회 소진 결과 확인, 정식 문제·사이클 행 0개 유지 |
+| 진행 중인 정식 게임 보호 | 정식 첫 문제 완료 후 연습을 마쳐도 기록 수·활성 게임 ID·난이도 동일. 정식 게임 2/10에서 재개 |
+| 일반 디버그·서명 전 릴리스 빌드 | 통과. 설치용 디버그 패키지는 `com.example.memorysteps`, 최소 API 26 |
+| Lint | 오류 0, 기존 버전 알림 14개 |
+| 글꼴과 고지 | 두 APK 모두 원본 폰트 3개와 라이선스 바이트 일치 |
+
+계측은 별도 검증 앱 `com.example.memorysteps.difficultyvalidation`에서 실행했습니다. 테스트 기록은 개인 앱과 분리되며 DB·설치 APK를 Git에 포함하지 않습니다. 화면 크기·밀도·글자 배율은 2560×1600·320dpi·1.0으로 복원했습니다. 실물 태블릿 검증은 아직 하지 않았습니다.
+
+위 절의 재현 명령에서 동일 테스트 클래스를 실행하면 변경된 12개 UI 테스트를 검증할 수 있습니다. 작은 화면에서는 `TrainingFlowTest`의 `eachPracticeEndsAfterOneQuestionAndDoesNotCreateLearningRecords`, `oneQuestionPracticePreservesAnUnfinishedFormalGameAndItsDifficulty` 두 메서드와 나머지 세 클래스를 실행했습니다. 실행 로그는 `.artifacts/practice-one-build.log`, `practice-one-tablet-tests.log`, `practice-one-largefont-tests.log`, `practice-one-final-build.log`입니다.
+
+최신 설치 파일은 `.artifacts/MemorySteps-submission-2026-10-06-debug.apk`로 갱신했습니다. 위 메뉴 정리 시점의 APK를 대체합니다.
+
+- 디버그 SHA-256: `3576032e49aa6d14ab87ed05a1484edf895cb3b4a14f5863f676fa7c1bd97da1`
+- 서명 전 릴리스 SHA-256: `994bc3e5a76845d7c10f5109559c7577dab91c8296114308c30502142970cab4`
+
+[1문제 체험 안내](screenshots/submission-learn-tablet.png) · [게임 설명](screenshots/submission-guide-tablet.png) · [글자 200% 학습 선택](screenshots/submission-learn-largefont.png)
