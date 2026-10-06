@@ -1,0 +1,8 @@
+{
+  "model": "Qwen3-0.6B + common-v0.2 LoRA",
+  "quantization": "Q8_0",
+  "sha256": "fbaf89dbeef2802a9ae27a58be901a0e88b737fc7e0fb21e15e98a3bdc90d67a",
+  "file": "question-author-v2-q8.gguf",
+  "bytes": 639446912,
+  "adapter_sha256": "7efd310878a09d108ba1538e3b747328ea50e41892a1936b8c6927ea27e23744"
+}

@@ -4,6 +4,9 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -56,10 +59,11 @@ class TrainingFlowTest {
             click(if (index == 9) R.string.show_results else R.string.next_question)
         }
         waitFor(R.string.summary_title)
-        compose.onNodeWithText(compose.activity.getString(R.string.summary_first, 10)).assertIsDisplayed()
+        compose.onNodeWithText(compose.activity.getString(R.string.summary_first, 10, 10)).assertIsDisplayed()
         click(R.string.home_button)
         click(R.string.home_title)
-        compose.onNodeWithText(compose.activity.getString(R.string.record_first, 10, 10)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("metric-first").performScrollTo().assertIsDisplayed()
+            .assert(hasAnyDescendant(hasText(compose.activity.getString(R.string.metric_fraction, 10, 10))))
     }
 
     @Test fun wrongOptionDisablesAndRecreationKeepsCompletedProgress() {
@@ -96,18 +100,76 @@ class TrainingFlowTest {
         waitFor(R.string.next_button)
     }
 
-    @Test fun practiceDoesNotCreateLearningRecords() {
+    @Test fun eachPracticeEndsAfterOneQuestionAndDoesNotCreateLearningRecords() {
         click(R.string.learn_menu)
-        click(R.string.type_number)
+        listOf(R.string.type_color, R.string.type_picture, R.string.type_number).forEach { type ->
+            click(type)
+            waitFor(R.string.next_button)
+            val progress = compose.onNodeWithTag("question-progress").fetchSemanticsNode()
+                .config[SemanticsProperties.Text].single().text
+            assertTrue(progress.startsWith("1 / 1"))
+            val answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
+                .config[SemanticsProperties.ContentDescription].single()
+            click(R.string.next_button)
+            waitFor(R.string.solve_prompt)
+            if (type == R.string.type_color) {
+                val wrongTags = (1..4).map { "option-option-$it" }.filter { tag ->
+                    !hasContentDescription(answer).matches(compose.onNodeWithTag(tag).fetchSemanticsNode())
+                }
+                wrongTags.forEach { compose.onNodeWithTag(it).performScrollTo().performClick() }
+                waitFor(R.string.wrong_result)
+            } else {
+                compose.onNodeWithContentDescription(answer).performScrollTo().performClick()
+                waitFor(R.string.correct_result)
+            }
+            compose.onNodeWithText(compose.activity.getString(R.string.next_question)).assertDoesNotExist()
+            compose.onNodeWithText(compose.activity.getString(R.string.show_results)).assertDoesNotExist()
+            click(R.string.practice_finish)
+            compose.onNodeWithText(compose.activity.getString(R.string.practice_heading)).performScrollTo().assertIsDisplayed()
+            assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().problemCount() })
+            assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().cycleCount() })
+        }
+    }
+
+    @Test fun oneQuestionPracticePreservesAnUnfinishedFormalGameAndItsDifficulty() {
+        click(R.string.learn_menu)
+        click(R.string.mixed_title)
         waitFor(R.string.next_button)
-        val answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
+        var answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
             .config[SemanticsProperties.ContentDescription].single()
         click(R.string.next_button)
         waitFor(R.string.solve_prompt)
         compose.onNodeWithContentDescription(answer).performScrollTo().performClick()
         waitFor(R.string.correct_result)
-        assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().problemCount() })
-        assertEquals(0, runBlocking { LearningDatabase.get(compose.activity).learningDao().cycleCount() })
+        click(R.string.next_question)
+        waitFor(R.string.next_button)
+        click(R.string.pause_button)
+        click(R.string.pause_back)
+        val db = LearningDatabase.get(compose.activity)
+        val before = runBlocking {
+            Triple(db.learningDao().problemCount(), db.learningDao().cycleCount(), db.learningDao().progress()?.activeCycleId)
+        }
+        val conditions = runBlocking { db.adaptiveDao().difficulties() }
+        click(R.string.type_number)
+        waitFor(R.string.next_button)
+        answer = compose.onNodeWithTag("memory-target").fetchSemanticsNode()
+            .config[SemanticsProperties.ContentDescription].single()
+        click(R.string.next_button)
+        waitFor(R.string.solve_prompt)
+        compose.onNodeWithContentDescription(answer).performScrollTo().performClick()
+        waitFor(R.string.correct_result)
+        click(R.string.practice_finish)
+        assertEquals(before, runBlocking {
+            Triple(db.learningDao().problemCount(), db.learningDao().cycleCount(), db.learningDao().progress()?.activeCycleId)
+        })
+        assertEquals(conditions, runBlocking { db.adaptiveDao().difficulties() })
+        click(R.string.continue_training)
+        waitFor(R.string.interrupted_title)
+        click(R.string.resume_question)
+        waitFor(R.string.next_button)
+        val progress = compose.onNodeWithTag("question-progress").fetchSemanticsNode()
+            .config[SemanticsProperties.Text].single().text
+        assertTrue(progress.startsWith("2 / 10"))
     }
 
     @Test fun pauseDuringCountdownHidesGameAndRestartsOnlyCurrentQuestion() {

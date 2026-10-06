@@ -18,6 +18,8 @@ data class SessionCheckpoint(
     val result: RoundResult,
     val completed: List<CompletedProblem>,
     val showSummary: Boolean,
+    val slotConditions: List<GameConditions> = List(10) { problem.conditions },
+    val plannedProblems: List<MemoryProblem>? = null,
 )
 
 class TrainingSnapshot internal constructor(
@@ -30,7 +32,7 @@ class TrainingSnapshot internal constructor(
     val showSummary: Boolean,
     val practice: Boolean,
 ) {
-    val total: Int get() = 10
+    val total: Int get() = if (practice) 1 else 10
     val complete: Boolean get() = completed.size == total
     val firstCorrect: Int get() = completed.count { it.result.firstChoiceCorrect }
     val finalCorrect: Int get() = completed.count { it.result.finalCorrect }
@@ -46,23 +48,32 @@ class TrainingSession(
     private val conditions: GameConditions = GameConditions(),
     private val practice: Boolean = false,
     private val restored: SessionCheckpoint? = null,
+    conditionsByType: Map<GameType, GameConditions> = emptyMap(),
+    plannedProblems: List<MemoryProblem>? = null,
 ) {
+    private val prepared = restored?.plannedProblems ?: plannedProblems
     private val sessionId = restored?.sessionId ?: UUID.randomUUID().toString()
     val plan: List<GameType> = frozenCopy(
-        restored?.plan ?: mode.singleType?.let { type -> List(10) { type } } ?: run {
+        restored?.plan ?: prepared?.map { it.type } ?: if (practice) listOf(requireNotNull(mode.singleType) { "Practice requires one selected type" })
+        else mode.singleType?.let { type -> List(10) { type } } ?: run {
             require(completedMixedCycles >= 0)
             val extraType = GameType.entries[completedMixedCycles % 3]
             GameType.entries.flatMap { type -> List(if (type == extraType) 4 else 3) { type } }.shuffled(random)
         },
     )
+    val slotConditions: List<GameConditions> = frozenCopy(restored?.slotConditions ?: plan.map { conditionsByType[it] ?: conditions })
     private var index = restored?.index ?: 0
     private var round = restored?.let { GameRound.restore(it.problem, clock, it.result) }
-        ?: GameRound(generator.generate(plan[index], conditions), clock)
+        ?: GameRound(prepared?.get(index) ?: generator.generate(plan[index], slotConditions[index]), clock)
     private val completed = restored?.completed?.toMutableList() ?: mutableListOf()
     private var showSummary = restored?.showSummary ?: false
 
     init {
-        require(plan.size == 10 && index in plan.indices)
+        require(plan.size == (if (practice) 1 else 10) && index in plan.indices)
+        require(slotConditions.size == plan.size)
+        require(prepared == null || (!practice && prepared.size == plan.size && prepared.indices.all {
+            prepared[it].type == plan[it] && prepared[it].conditions == slotConditions[it]
+        }))
         require(restored == null || (restored.mode == mode && restored.problem.type == plan[index]))
     }
 
@@ -89,14 +100,14 @@ class TrainingSession(
         if (!result.valid) return state
         if (index == plan.lastIndex) showSummary = true else {
             index++
-            round = GameRound(generator.generate(plan[index], conditions), clock)
+            round = GameRound(prepared?.get(index) ?: generator.generate(plan[index], slotConditions[index]), clock)
         }
         return state
     }
 
     fun resume(id: String): TrainingSnapshot {
         if (id == round.problem.id && round.state.result?.outcome == RoundOutcome.INTERRUPTED) {
-            round = GameRound(generator.generate(plan[index], conditions, round.problem.target), clock)
+            round = GameRound(generator.generate(plan[index], slotConditions[index], round.problem.target), clock)
         }
         return state
     }

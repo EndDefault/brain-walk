@@ -1,45 +1,24 @@
 package com.example.memorysteps.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 
-private val MemoryColors = lightColorScheme(
-    primary = Color(0xFF173B5E),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFE7ECF2),
-    onPrimaryContainer = Color(0xFF20344C),
-    secondary = Color(0xFF526170),
-    background = Color(0xFFFFF9EA),
-    onBackground = Color(0xFF202A35),
-    surface = Color.White,
-    onSurface = Color(0xFF202A35),
-    onSurfaceVariant = Color(0xFF525C68),
-    outline = Color(0xFF526273),
-    outlineVariant = Color(0xFFBBC2C8),
-)
-
-private val MemoryTypography = Typography(
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Bold,
-        fontSize = 38.sp,
-        lineHeight = 52.sp,
-    ),
-    headlineSmall = TextStyle(fontSize = 28.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold),
-    titleLarge = TextStyle(fontSize = 24.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold),
-    bodyLarge = TextStyle(fontSize = 22.sp, lineHeight = 34.sp),
-    bodyMedium = TextStyle(fontSize = 20.sp, lineHeight = 30.sp),
-    labelLarge = TextStyle(fontSize = 22.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold),
+private val MemoryShapes = Shapes(
+    extraSmall = RoundedCornerShape(AppDimensions.controlCorner),
+    small = RoundedCornerShape(AppDimensions.controlCorner),
+    medium = RoundedCornerShape(AppDimensions.dialogCorner),
+    large = RoundedCornerShape(AppDimensions.dialogCorner),
+    extraLarge = RoundedCornerShape(AppDimensions.dialogCorner),
 )
 
 @Composable
 fun MemoryStepsTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = MemoryColors, typography = MemoryTypography, content = content)
+    MaterialTheme(
+        colorScheme = MemoryColors,
+        typography = MemoryTypography,
+        shapes = MemoryShapes,
+        content = content,
+    )
 }

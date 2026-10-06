@@ -36,9 +36,12 @@ class ProblemGenerator(
         GameType.NUMBER -> (10..99).map(::NumberItem)
     }
 
-    private fun version(type: GameType): String = when (type) {
-        GameType.COLOR -> "color-pair-v1"
-        GameType.PICTURE -> "picture-symbol-v1"
-        GameType.NUMBER -> "two-digit-number-v1"
+    companion object {
+        fun version(type: GameType): String = when (type) {
+            GameType.COLOR -> "color-pair-v1"
+            GameType.PICTURE -> "picture-symbol-v1"
+            GameType.NUMBER -> "two-digit-number-v1"
+        }
+        val combinedVersion: String get() = GameType.entries.joinToString("|") { "${it.name}:${version(it)}" }
     }
 }

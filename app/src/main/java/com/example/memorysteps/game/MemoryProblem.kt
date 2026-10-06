@@ -14,6 +14,8 @@ class MemoryProblem(
     val conditions: GameConditions,
     val target: MemoryItem,
     options: List<AnswerOption>,
+    val generationSource: String = "RULE",
+    val modelVersion: String? = null,
 ) {
     // Copy and protect the caller's list so validated content cannot change later.
     val options: List<AnswerOption> = frozenCopy(options)

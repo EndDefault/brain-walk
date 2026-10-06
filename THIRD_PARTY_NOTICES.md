@@ -1,6 +1,40 @@
 # 외부 자료와 라이선스
 
-확인일: 2026-09-23. 외부 이미지·음원·폰트 파일·학습 데이터가 없습니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 화면 글꼴은 Android의 시스템 기본 글꼴입니다. 게임 그림 16개와 색 구성은 `MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+확인일: 2026-10-06. 앱에는 Pretendard 1.3.9, Qwen3-0.6B에 공통 LoRA v0.2를 병합·Q8_0 변환한 출제 모델, llama.cpp 네이티브 런타임을 포함합니다. 외부 이미지·음원·개인 학습 데이터는 없으며 추가 보정 자료는 직접 만든 가상 상황입니다. 앱 아이콘은 직접 작성한 VectorDrawable이며, 게임 그림 16개와 색 구성은 `ui/components/MemoryItemView.kt`의 Canvas 도형으로 직접 작성했습니다. ViewModel/Compose Lifecycle 2.9.4와 Coroutines Android 1.9.0은 기존 전이 버전과 같은 직접 의존성으로 선언했습니다.
+
+## Android에 포함한 출제 모델·런타임
+
+- 모델: 아래 고정 원본에 공통 LoRA v0.2를 병합한 뒤 GGUF Q8_0으로 변환했습니다. 변경 산출물의 해시는 `app/src/main/assets/models/question-author-v2.json`에 보관합니다. 모델 Apache-2.0 원문은 APK의 `assets/licenses/Qwen3-Apache-2.0.txt`에 포함합니다.
+- 런타임: [llama.cpp](https://github.com/ggml-org/llama.cpp/tree/5e03bdd8700948b9c41c54dd1b00f28a2aebc03f) 고정 커밋을 수정 없이 CPU 정적 라이브러리로 빌드하고 직접 작성한 JNI에 연결합니다. [MIT 원문](licenses/llama.cpp-MIT.txt)과 저작권 고지를 APK에도 보존합니다. HTTP 서버·도구·KleidiAI는 빌드하지 않습니다.
+- C++ 런타임: Android NDK 28.2.13676358의 libc++를 포함합니다. 배포물의 `NOTICE.toolchain`을 APK의 `assets/licenses/Android-NDK-toolchain-NOTICE.txt`에 보존합니다.
+- 고지는 배포 파일에 포함하며 게임 메뉴에 개발/라이선스 버튼을 다시 추가하지 않습니다.
+
+## 출제 모델 보정 실험
+
+공식 [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B)의 커밋 `c1899de289a04d12100db370d81485cdf75e47ca`를 사용합니다. 원본 [LICENSE](https://huggingface.co/Qwen/Qwen3-0.6B/blob/c1899de289a04d12100db370d81485cdf75e47ca/LICENSE)는 Apache-2.0이며 [저장소 사본](licenses/Qwen3-0.6B/LICENSE.txt)에 보존합니다. 해당 버전 파일 목록에 별도 NOTICE는 없습니다. 원본 가중치는 수정하지 않고 로컬 캐시에 보관하며, 추가 학습한 LoRA 보정 가중치는 변경 사실·원본 버전·평가와 함께 별도 실험 산출물로 관리합니다. Qwen의 보증·제휴를 표시하지 않습니다.
+
+원본 `model.safetensors` SHA-256: `f47f71177f32bcd101b7573ec9171e6a57f4f4d31148d38e382306f42996874b`. 1.5GB 원본과 Python 실행 환경은 Git에 포함하지 않습니다. 학습 도구의 고정 직접 의존성은 `training/question_author/requirements.txt`에 기록하며 이 도구들은 Android 앱 런타임에 포함되지 않습니다. 모바일 모델로 변환·배포할 때는 변환된 파일과 사용하는 Android 런타임의 고지를 별도로 검증합니다.
+
+## 앱에 포함한 글꼴
+
+| 항목 | 내용 |
+| --- | --- |
+| 글꼴·제작자 | Pretendard 1.3.9 · 길형진(Kil Hyung-jin) |
+| 공식 출처 | [Pretendard 저장소](https://github.com/orioncactus/pretendard), 태그 v1.3.9 / 커밋 `5c41199ea0024a9e0b2cb31735265056e5472d76` |
+| 원본 파일 | 해당 커밋의 `packages/pretendard/dist/public/static/Pretendard-Regular.otf`, `Pretendard-Bold.otf`, `Pretendard-Black.otf` |
+| 라이선스 | [SIL Open Font License 1.1 원문](https://github.com/orioncactus/pretendard/blob/5c41199ea0024a9e0b2cb31735265056e5472d76/LICENSE) |
+| 변경 여부 | 폰트 내용 수정·변환·서브셋 없음. Android 리소스 규칙에 맞춰 파일명만 소문자로 저장 |
+| 고지 보존 | [저장소 원문](licenses/Pretendard-OFL-1.1.txt) 및 APK의 `assets/licenses/Pretendard-OFL-1.1.txt`. 2026-10-06 메뉴 정리로 화면 버튼은 제거했으며 배포 파일의 원문·저작권 고지는 유지 |
+
+사용한 v1.3.9의 라이선스 원문에 있는 저작권자 Kil Hyung-jin과 Reserved Font Name **Pretendard** 고지를 보존했습니다. 폰트 자체를 단독 판매하지 않으며 앱에 함께 배포합니다. 추후 폰트 내용을 수정한다면 OFL의 Reserved Font Name 조건을 다시 확인해야 합니다. 앱 코드는 폰트를 포함한다는 이유만으로 OFL로 바뀌지 않습니다.
+
+배포한 원본 확인용 SHA-256:
+
+```text
+pretendard_regular.otf  3FFBACDE6AB8411F1D2DB54BB9B1F0B3EE2A738932033722CF0388C06AED1C93
+pretendard_bold.otf     2E91915FAB54DF71CC9598EBF608B2BDB54C6FE3C066AC61DFF0BC44FCA71CC7
+pretendard_black.otf    94628B0BCEA8936B6E5C30D98D685EB9BBAFFB0FE2ED255542ECC656C248E021
+```
 
 ## 앱·테스트 라이브러리
 

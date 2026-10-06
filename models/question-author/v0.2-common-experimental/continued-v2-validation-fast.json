@@ -1,0 +1,304 @@
+{
+  "base_model": "Qwen/Qwen3-0.6B",
+  "base_revision": "c1899de289a04d12100db370d81485cdf75e47ca",
+  "adapter_sha256": "7efd310878a09d108ba1538e3b747328ea50e41892a1936b8c6927ea27e23744",
+  "requested_rows": 30,
+  "complete": true,
+  "source": "synthetic_only",
+  "data_sha256": "36c905013bab3a7d7fdb90444c1f3ce62719470b67efdc94e342f69cf2c2cdc5",
+  "device": "NVIDIA GeForce RTX 3050",
+  "decoding": "deterministic_greedy_non_thinking",
+  "constraints": "tool_json_count_catalog_and_no_target_repetition",
+  "forced_token_prefill": true,
+  "max_new_tokens": 1536,
+  "summary": {
+    "requests": 30,
+    "structurally_valid": 30,
+    "structural_valid_rate": 1.0,
+    "focus_accuracy": 0.6,
+    "no_recent_or_repeated_target_rate": 1.0,
+    "confusion_review_cases": 10,
+    "confusion_review_rate": 0.8,
+    "median_seconds": 8.378277800045907,
+    "max_seconds": 13.194501900114119,
+    "errors": {},
+    "focus_outcomes": {
+      "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 5,
+      "COLOR -> BALANCED": 3,
+      "PICTURE -> BALANCED": 3,
+      "NUMBER -> BALANCED": 4,
+      "BALANCED -> BALANCED": 13,
+      "BALANCED -> INSUFFICIENT_DATA": 1,
+      "INSUFFICIENT_DATA -> BALANCED": 1
+    }
+  },
+  "random_reference": {
+    "requests": 30,
+    "structurally_valid": 30,
+    "structural_valid_rate": 1.0,
+    "focus_accuracy": 0.4666666666666667,
+    "no_recent_or_repeated_target_rate": 0.26666666666666666,
+    "confusion_review_cases": 10,
+    "confusion_review_rate": 0.1,
+    "median_seconds": 0.0,
+    "max_seconds": 0.0,
+    "errors": {},
+    "focus_outcomes": {
+      "INSUFFICIENT_DATA -> BALANCED": 6,
+      "COLOR -> BALANCED": 3,
+      "PICTURE -> BALANCED": 3,
+      "NUMBER -> BALANCED": 4,
+      "BALANCED -> BALANCED": 14
+    }
+  },
+  "per_scenario": {
+    "all_low": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 1.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 5.552589500090107,
+      "max_seconds": 8.399592200061306,
+      "errors": {},
+      "focus_outcomes": {
+        "BALANCED -> BALANCED": 3
+      }
+    },
+    "all_strong": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 1.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 8.395309300161898,
+      "max_seconds": 11.056587599916384,
+      "errors": {},
+      "focus_outcomes": {
+        "BALANCED -> BALANCED": 3
+      }
+    },
+    "close_rates": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 1.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 10.718354899901897,
+      "max_seconds": 12.717287699924782,
+      "errors": {},
+      "focus_outcomes": {
+        "BALANCED -> BALANCED": 3
+      }
+    },
+    "cold_start": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 1.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 6.011131200008094,
+      "max_seconds": 8.356631600065157,
+      "errors": {},
+      "focus_outcomes": {
+        "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 3
+      }
+    },
+    "color_weak": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 3,
+      "confusion_review_rate": 0.6666666666666666,
+      "median_seconds": 11.390302299987525,
+      "max_seconds": 12.534225099952891,
+      "errors": {},
+      "focus_outcomes": {
+        "COLOR -> BALANCED": 3
+      }
+    },
+    "number_weak": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 3,
+      "confusion_review_rate": 1.0,
+      "median_seconds": 5.301567799877375,
+      "max_seconds": 13.194501900114119,
+      "errors": {},
+      "focus_outcomes": {
+        "NUMBER -> BALANCED": 3
+      }
+    },
+    "picture_weak": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.0,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 3,
+      "confusion_review_rate": 0.6666666666666666,
+      "median_seconds": 10.57027340005152,
+      "max_seconds": 13.16247640014626,
+      "errors": {},
+      "focus_outcomes": {
+        "PICTURE -> BALANCED": 3
+      }
+    },
+    "slow_correct": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.6666666666666666,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 10.63555119978264,
+      "max_seconds": 13.134593399940059,
+      "errors": {},
+      "focus_outcomes": {
+        "BALANCED -> INSUFFICIENT_DATA": 1,
+        "BALANCED -> BALANCED": 2
+      }
+    },
+    "sparse": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.6666666666666666,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 0,
+      "confusion_review_rate": null,
+      "median_seconds": 8.361246299929917,
+      "max_seconds": 10.815034199971706,
+      "errors": {},
+      "focus_outcomes": {
+        "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 2,
+        "INSUFFICIENT_DATA -> BALANCED": 1
+      }
+    },
+    "unequal_counts": {
+      "requests": 3,
+      "structurally_valid": 3,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.6666666666666666,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 1,
+      "confusion_review_rate": 1.0,
+      "median_seconds": 5.433173999888822,
+      "max_seconds": 13.034111100016162,
+      "errors": {},
+      "focus_outcomes": {
+        "BALANCED -> BALANCED": 2,
+        "NUMBER -> BALANCED": 1
+      }
+    }
+  },
+  "per_option_count": {
+    "4": {
+      "requests": 6,
+      "structurally_valid": 6,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.5,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 3,
+      "confusion_review_rate": 1.0,
+      "median_seconds": 3.9770976500585675,
+      "max_seconds": 4.036690300097689,
+      "errors": {},
+      "focus_outcomes": {
+        "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 1,
+        "BALANCED -> BALANCED": 2,
+        "NUMBER -> BALANCED": 2,
+        "PICTURE -> BALANCED": 1
+      }
+    },
+    "6": {
+      "requests": 6,
+      "structurally_valid": 6,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.8333333333333334,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 1,
+      "confusion_review_rate": 1.0,
+      "median_seconds": 5.542414549970999,
+      "max_seconds": 6.011131200008094,
+      "errors": {},
+      "focus_outcomes": {
+        "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 2,
+        "BALANCED -> BALANCED": 3,
+        "NUMBER -> BALANCED": 1
+      }
+    },
+    "9": {
+      "requests": 6,
+      "structurally_valid": 6,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.6666666666666666,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 1,
+      "confusion_review_rate": 0.0,
+      "median_seconds": 8.378277800045907,
+      "max_seconds": 8.693421700038016,
+      "errors": {},
+      "focus_outcomes": {
+        "COLOR -> BALANCED": 1,
+        "BALANCED -> INSUFFICIENT_DATA": 1,
+        "INSUFFICIENT_DATA -> INSUFFICIENT_DATA": 2,
+        "BALANCED -> BALANCED": 2
+      }
+    },
+    "12": {
+      "requests": 6,
+      "structurally_valid": 6,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.5,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 2,
+      "confusion_review_rate": 1.0,
+      "median_seconds": 10.766694549936801,
+      "max_seconds": 11.390302299987525,
+      "errors": {},
+      "focus_outcomes": {
+        "PICTURE -> BALANCED": 1,
+        "BALANCED -> BALANCED": 3,
+        "COLOR -> BALANCED": 1,
+        "INSUFFICIENT_DATA -> BALANCED": 1
+      }
+    },
+    "16": {
+      "requests": 6,
+      "structurally_valid": 6,
+      "structural_valid_rate": 1.0,
+      "focus_accuracy": 0.5,
+      "no_recent_or_repeated_target_rate": 1.0,
+      "confusion_review_cases": 3,
+      "confusion_review_rate": 0.6666666666666666,
+      "median_seconds": 13.08435224997811,
+      "max_seconds": 13.194501900114119,
+      "errors": {},
+      "focus_outcomes": {
+        "NUMBER -> BALANCED": 1,
+        "BALANCED -> BALANCED": 3,
+        "PICTURE -> BALANCED": 1,
+        "COLOR -> BALANCED": 1
+      }
+    }
+  },
+  "tablet_offline_verified": false,
+  "production_ready": false,
+  "limitations": "Synthetic rule-authored instruction compliance only; no real-user benefit claim. Failed generations remain in denominators. GPU timing is not tablet timing.",
+  "adapter_evaluated": true
+}

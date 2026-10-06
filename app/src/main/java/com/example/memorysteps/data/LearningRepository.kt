@@ -3,20 +3,53 @@ package com.example.memorysteps.data
 import androidx.room.withTransaction
 import com.example.memorysteps.BuildConfig
 import com.example.memorysteps.game.*
+import com.example.memorysteps.difficulty.AlgorithmMode
+import com.example.memorysteps.ai.author.AuthorRequest
 
 class LearningRepository(private val db: LearningDatabase) {
     val dao = db.learningDao()
+    val adaptiveDao = db.adaptiveDao()
+    private val adaptive = AdaptiveLearning(db)
+
+    suspend fun startFormal(mode: TrainingMode, clock: MonotonicClock, runToken: String, at: Long): TrainingSession = db.withTransaction {
+        adaptive.initialize(at)
+        check(dao.progress()?.activeCycleId == null)
+        adaptive.applyPending(at)
+        val conditions = checkNotNull(adaptiveDao.difficulty(LearningScope.COMBINED)).conditions()
+        val session = TrainingSession(mode, dao.completedMixedCycles(), clock, conditions = conditions)
+        create(session, runToken, at)
+        session
+    }
+
+    suspend fun changeAlgorithm(mode: AlgorithmMode, at: Long): Boolean = db.withTransaction { adaptive.changeMode(mode, at) }
+
+    suspend fun startAuthored(request: AuthorRequest, planId: String, clock: MonotonicClock, runToken: String, at: Long): TrainingSession = db.withTransaction {
+        val plans = QuestionPlanRepository(db)
+        check(plans.request(at)?.key == request.key) { "Stale question plan" }
+        val row = checkNotNull(db.authoredPlanDao().get(planId))
+        check(row.requestKey == request.key && row.cycleId == null)
+        val problems = plans.decode(row, List(10) { request.conditions })
+        check(problems.map { it.type } == request.slots)
+        val session = TrainingSession(TrainingMode.MIXED, dao.completedMixedCycles(), clock,
+            conditions = request.conditions, plannedProblems = problems)
+        create(session, runToken, at)
+        check(db.authoredPlanDao().consume(row.id, session.state.sessionId) == 1)
+        session
+    }
 
     suspend fun create(session: TrainingSession, runToken: String, at: Long) = db.withTransaction {
         val state = session.state
         require(!state.practice) { "Practice must not enter learning records" }
+        adaptive.initialize(at)
         check(dao.progress()?.activeCycleId == null) { "Training already in progress" }
         val rotation = dao.completedMixedCycles()
         dao.insertCycle(CycleEntity(state.sessionId, state.mode.name, "IN_PROGRESS", at, null,
-            rotation % 3, 0, false, BuildConfig.VERSION_NAME))
-        val c = state.problem.conditions
+            rotation % 3, 0, false, BuildConfig.VERSION_NAME, checkNotNull(adaptiveDao.config()).epochId))
+        val difficulty = checkNotNull(adaptiveDao.difficulty(LearningScope.COMBINED))
         dao.insertSlots(session.plan.mapIndexed { index, type ->
-            SlotEntity(state.sessionId, index, type.name, c.memoryLimitMs, c.waitMs, c.optionCount, c.solveLimitMs)
+            val c = session.slotConditions[index]
+            SlotEntity(state.sessionId, index, type.name, c.memoryLimitMs, c.waitMs, c.optionCount, c.solveLimitMs,
+                difficulty.conditionVersion, appliedDecisionId = difficulty.appliedDecisionId)
         })
         dao.setProgress(ProgressEntity(activeCycleId = state.sessionId))
         saveInsideTransaction(state, runToken, at)
@@ -55,12 +88,16 @@ class LearningRepository(private val db: LearningDatabase) {
         }
         if (result?.valid == true) {
             check(slot.finalizedProblemId == null || slot.finalizedProblemId == state.problem.id)
-            if (slot.finalizedProblemId == null) check(dao.finalizeSlot(cycle.id, slotIndex, state.problem.id) == 1)
+            if (slot.finalizedProblemId == null) {
+                check(dao.finalizeSlot(cycle.id, slotIndex, state.problem.id) == 1)
+                adaptive.completed(checkNotNull(dao.problem(state.problem.id)), slot, cycle, at)
+            }
         }
         val completed = dao.slots(cycle.id).count { it.finalizedProblemId != null } == 10
         dao.updateCycle(cycle.copy(currentSlot = slotIndex, showSummary = state.showSummary,
             status = if (completed) "COMPLETED" else cycle.status,
             completedAt = if (completed) cycle.completedAt ?: at else null))
+        if (completed && cycle.status != "COMPLETED") adaptive.applyPending(at)
         if (completed && dao.progress()?.activeCycleId == cycle.id) dao.setProgress(ProgressEntity(activeCycleId = null))
     }
 
@@ -78,6 +115,7 @@ class LearningRepository(private val db: LearningDatabase) {
 
     /** Recover from committed data only. Old process timer origins are never used. */
     suspend fun recoverActive(at: Long): SessionCheckpoint? = db.withTransaction {
+        adaptive.initialize(at)
         val id = dao.progress()?.activeCycleId ?: return@withTransaction null
         val cycle = checkNotNull(dao.cycle(id))
         check(cycle.status == "IN_PROGRESS")
@@ -97,7 +135,11 @@ class LearningRepository(private val db: LearningDatabase) {
         val current = problems.filter { it.slotIndex == cycle.currentSlot }.maxBy { it.revision }
         val slot = slots[cycle.currentSlot]
         SessionCheckpoint(id, TrainingMode.valueOf(cycle.mode), slots.map { GameType.valueOf(it.type) },
-            cycle.currentSlot, ProblemContentCodec.decode(current, slot), result(current, slot), completed, cycle.showSummary)
+            cycle.currentSlot, ProblemContentCodec.decode(current, slot), result(current, slot), completed, cycle.showSummary,
+            slots.map { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) },
+            db.authoredPlanDao().forCycle(id)?.let { plan ->
+                QuestionPlanRepository(db).decode(plan, slots.map { GameConditions(it.memoryMs, it.waitMs, it.optionCount, it.solveMs) })
+            })
     }
 
     private suspend fun result(problem: ProblemEntity, slot: SlotEntity): RoundResult {
@@ -119,6 +161,7 @@ class LearningRepository(private val db: LearningDatabase) {
                     learningStatus = "EXCLUDED_INVALID"))
             }
             dao.updateCycle(cycle.copy(status = "STOPPED"))
+            adaptiveDao.stopCycleBundle(id)
         }
         if (dao.progress()?.activeCycleId == id) dao.setProgress(ProgressEntity(activeCycleId = null))
     }

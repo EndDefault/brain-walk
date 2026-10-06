@@ -9,3 +9,19 @@ gradlew text eol=lf
 gradlew.bat text eol=crlf
 *.jar binary
 *.png binary
+*.otf binary
+*.safetensors binary
+# Keep Python source stable and preserve packaged artifact checksum bytes on every OS.
+training/**/*.py text eol=lf
+models/question-author/** -text whitespace=cr-at-eol
+licenses/Qwen3-0.6B/LICENSE.txt -text
+# Preserve upstream font license text, including its original trailing spaces.
+licenses/Pretendard-OFL-1.1.txt text eol=lf whitespace=-blank-at-eol
+app/src/main/assets/licenses/Pretendard-OFL-1.1.txt text eol=lf whitespace=-blank-at-eol
+*.so binary
+# Preserve upstream notices and the tokenizer's exact prompt bytes.
+app/src/main/assets/licenses/Android-NDK-toolchain-NOTICE.txt -text whitespace=-blank-at-eol,-space-before-tab
+app/src/main/assets/licenses/Qwen3-Apache-2.0.txt -text
+app/src/main/assets/licenses/llama.cpp-MIT.txt -text whitespace=cr-at-eol
+licenses/llama.cpp-MIT.txt -text whitespace=cr-at-eol
+app/src/main/assets/models/question-prompt.txt -text whitespace=cr-at-eol,-blank-at-eof
