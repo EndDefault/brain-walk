@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="author_preparing">AI가 문제를 준비하고 있어요</string>
+    <string name="author_preparing_detail">이 기기 안에서 10문제를 만들고 있습니다. 처음에는 시간이 걸릴 수 있어요.</string>
+    <string name="author_failed">AI 문제 준비를 마치지 못했어요</string>
+    <string name="author_failed_detail">다시 시도하거나 기본 문제로 게임을 시작할 수 있어요.</string>
+    <string name="author_fallback">기본 문제로 시작</string>
+    <string name="author_model">AI가 구성한 문제</string>
+    <string name="author_rule">기본 문제</string>
+    <string name="author_next_ready">다음 게임의 AI 문제가 준비됐어요.</string>
+    <string name="author_next_preparing">결과를 보는 동안 다음 AI 문제를 준비하고 있어요.</string>
+    <string name="author_next_retry">다음 게임을 시작할 때 AI 문제 준비를 다시 시도해요.</string>
     <string name="app_name">MemorySteps</string>
     <string name="brand_name">기억 산책</string>
     <string name="home_title">학습 현황</string>

@@ -2,6 +2,10 @@ package com.example.memorysteps.ui
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +42,8 @@ fun MemoryStepsApp() {
     val active by trainingModel.active.collectAsStateWithLifecycle()
     val ready by trainingModel.ready.collectAsStateWithLifecycle()
     val busy by trainingModel.busy.collectAsStateWithLifecycle()
+    val preparing by trainingModel.preparing.collectAsStateWithLifecycle()
+    val preparationError by trainingModel.preparationError.collectAsStateWithLifecycle()
     val storageError by trainingModel.storageError.collectAsStateWithLifecycle()
     val overview by trainingModel.overview.collectAsStateWithLifecycle()
     val types by trainingModel.typeStatistics.collectAsStateWithLifecycle()
@@ -114,5 +120,21 @@ fun MemoryStepsApp() {
         confirmButton = {
             DialogActionButton(stringResource(R.string.retry_button), trainingModel::reload)
         },
+    )
+    if (preparing) AlertDialog(
+        onDismissRequest = trainingModel::cancelPreparation,
+        title = { Text(stringResource(if (preparationError) R.string.author_failed else R.string.author_preparing)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (!preparationError) CircularProgressIndicator()
+                Text(stringResource(if (preparationError) R.string.author_failed_detail else R.string.author_preparing_detail))
+            }
+        },
+        confirmButton = {
+            DialogActionButton(stringResource(if (preparationError) R.string.retry_button else R.string.cancel)) {
+                if (preparationError) trainingModel.retryPreparation() else trainingModel.cancelPreparation()
+            }
+        },
+        dismissButton = { DialogActionButton(stringResource(R.string.author_fallback), trainingModel::startFallback) },
     )
 }

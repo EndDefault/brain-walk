@@ -12,9 +12,24 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import com.example.memorysteps.ai.author.*
 
 class TrainingViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = LearningRepository(LearningDatabase.get(application))
+    private val plans = QuestionPlanRepository(LearningDatabase.get(application))
+    private val preparation = QuestionPreparation(viewModelScope, QuestionAuthors.create(application), plans)
+    private var startJob: Job? = null
+    private var requested: AuthorRequest? = null
+    private var startSerial = 0L
+    private val mutablePreparing = MutableStateFlow(false)
+    val preparing = mutablePreparing.asStateFlow()
+    private val mutablePreparationError = MutableStateFlow(false)
+    val preparationError = mutablePreparationError.asStateFlow()
+    private val mutableNextReady = MutableStateFlow(false)
+    val nextReady = mutableNextReady.asStateFlow()
+    private val mutableNextStatus = MutableStateFlow("")
+    val nextStatus = mutableNextStatus.asStateFlow()
     private val runToken = UUID.randomUUID().toString()
     private var session: TrainingSession? = null
     private var startPending = false
@@ -92,7 +107,8 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
                     val saved = repository.recoverActive(at)
                     if (saved != null) session = TrainingSession.restore(saved, clock)
                     else {
-                        session = repository.startFormal(mode, clock, runToken, at)
+                        beginAuthoredStart()
+                        return@enqueue
                     }
                 }
                 mutableState.value = session!!.state
@@ -102,6 +118,74 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
+
+    private fun beginAuthoredStart() {
+        if (startJob?.isActive == true) return
+        val serial = ++startSerial
+        mutablePreparing.value = true
+        mutablePreparationError.value = false
+        startJob = viewModelScope.launch {
+            try {
+                val request = plans.request(System.currentTimeMillis()) ?: return@launch
+                requested = request
+                val plan = preparation.prepare(request).await()
+                enqueue { at ->
+                    if (!mutablePreparing.value || requested?.key != request.key || serial != startSerial) return@enqueue
+                    session = repository.startAuthored(request, plan.id, clock, runToken, at)
+                    mutableState.value = session!!.state
+                    mutablePreparing.value = false
+                    mutableNextReady.value = false
+                    navigation.send(Unit)
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutablePreparationError.value = true }
+            catch (_: UnsatisfiedLinkError) { mutablePreparationError.value = true }
+        }
+    }
+
+    fun cancelPreparation() {
+        ++startSerial
+        mutablePreparing.value = false
+        mutablePreparationError.value = false
+        requested = null
+        startJob?.cancel(); startJob = null
+        preparation.cancel()
+    }
+
+    fun retryPreparation() { startJob = null; beginAuthoredStart() }
+
+    fun startFallback() {
+        val request = requested ?: return
+        val serial = ++startSerial
+        preparation.cancel(); startJob?.cancel()
+        enqueue { at ->
+            if (serial != startSerial || !mutablePreparing.value) return@enqueue
+            if (plans.request(at)?.key != request.key) { cancelPreparation(); return@enqueue }
+            val plan = plans.fallback(request, if (mutablePreparationError.value) "MODEL_FAILED" else "USER_SKIPPED_WAIT")
+            session = repository.startAuthored(request, plan.id, clock, runToken, at)
+            mutableState.value = session!!.state
+            mutablePreparing.value = false
+            mutablePreparationError.value = false
+            mutableNextReady.value = false
+            navigation.send(Unit)
+        }
+    }
+
+    private fun prepareNext() {
+        viewModelScope.launch {
+            try {
+                mutableNextStatus.value = "PREPARING"
+                val request = plans.request(System.currentTimeMillis()) ?: return@launch
+                preparation.prepare(request).await()
+                mutableNextReady.value = true
+                mutableNextStatus.value = "READY"
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableNextReady.value = false; mutableNextStatus.value = "FAILED" }
+            catch (_: UnsatisfiedLinkError) { mutableNextReady.value = false; mutableNextStatus.value = "FAILED" }
+        }
+    }
+
+    override fun onCleared() { preparation.cancel(); super.onCleared() }
 
     private fun change(id: String? = null, event: TrainingSession.() -> TrainingSnapshot) = enqueue { at ->
         val current = session ?: return@enqueue
@@ -116,6 +200,7 @@ class TrainingViewModel(application: Application) : AndroidViewModel(application
         }
         // A correct answer/result becomes visible only after its transaction commits.
         mutableState.value = after
+        if (!after.practice && after.complete && !before.complete) prepareNext()
     }
 
     fun memoryShown(id: String) = change(id) { memoryShown(id) }

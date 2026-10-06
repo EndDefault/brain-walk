@@ -41,6 +41,7 @@ import kotlinx.coroutines.isActive
 @Composable
 fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack: () -> Unit, onHome: () -> Unit) {
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val nextStatus by viewModel.nextStatus.collectAsStateWithLifecycle()
     val owner = LocalLifecycleOwner.current
     // Outgoing navigation entries must not interrupt a newly started cycle.
     val sessionId = remember(owner) { state.sessionId }
@@ -78,6 +79,8 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                     Text(stringResource(R.string.question_progress, state.questionNumber, state.total, typeName(state.problem.type)),
                         Modifier.testTag("question-progress"), style = MaterialTheme.typography.titleLarge)
                     if (state.practice) Text(stringResource(R.string.practice_label), style = MaterialTheme.typography.bodyMedium)
+                    else Text(stringResource(if (state.problem.generationSource == "MODEL") R.string.author_model else R.string.author_rule),
+                        style = MaterialTheme.typography.bodyMedium)
                 }
                 ActionButton(
                     text = stringResource(R.string.pause_button),
@@ -112,7 +115,7 @@ fun TrainingScreen(state: TrainingSnapshot, viewModel: TrainingViewModel, onBack
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(AppDimensions.itemGap, Alignment.CenterVertically)) {
                         // Conceal the target/options before the pause transaction completes.
                         if (!menuOpen) when {
-                            state.showSummary -> TrainingSummary(state)
+                    state.showSummary -> TrainingSummary(state, nextStatus)
                             phase == RoundPhase.READY || phase == RoundPhase.MEMORY -> {
                                 StageTitle(stringResource(R.string.memory_prompt))
                                 Countdown(state.round.remainingStageMs ?: state.problem.conditions.memoryLimitMs)

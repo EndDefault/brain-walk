@@ -12,7 +12,7 @@ import com.example.memorysteps.game.TrainingSnapshot
 import com.example.memorysteps.ui.components.typeName
 
 @Composable
-internal fun TrainingSummary(state: TrainingSnapshot) {
+internal fun TrainingSummary(state: TrainingSnapshot, nextStatus: String = "") {
     StageTitle(stringResource(if (state.practice) R.string.practice_summary else R.string.summary_title))
     Text(stringResource(R.string.summary_first, state.firstCorrect, state.total), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
     Text(stringResource(R.string.summary_final, state.finalCorrect, state.total), textAlign = TextAlign.Center)
@@ -25,4 +25,9 @@ internal fun TrainingSummary(state: TrainingSnapshot) {
     Text(stringResource(if (state.practice) R.string.practice_notice else R.string.session_notice),
         style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
     if (!state.practice) Text(stringResource(R.string.adaptive_notice), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+    if (!state.practice && nextStatus.isNotEmpty()) Text(stringResource(when (nextStatus) {
+        "READY" -> R.string.author_next_ready
+        "PREPARING" -> R.string.author_next_preparing
+        else -> R.string.author_next_retry
+    }), style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
 }
