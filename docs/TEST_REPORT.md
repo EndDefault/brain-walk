@@ -458,3 +458,32 @@ UI 테스트는 API 37 에뮬레이터의 `com.example.memorysteps.difficultyval
 - 서명 전 릴리스 SHA-256: `994bc3e5a76845d7c10f5109559c7577dab91c8296114308c30502142970cab4`
 
 [1문제 체험 안내](screenshots/submission-learn-tablet.png) · [게임 설명](screenshots/submission-guide-tablet.png) · [글자 200% 학습 선택](screenshots/submission-learn-largefont.png)
+
+
+## 2026-10-06 · 실제 학습 모델 Android 연결
+
+Qwen3-0.6B + 공통 LoRA v0.2를 병합한 Q8_0 모델을 APK에 넣고 JNI CPU 추론을 정식 게임에 연결했습니다. 기존 UI 정리 범위에서 확장된 사용자 요청입니다. [구현과 한계](ANDROID_QUESTION_AUTHOR.md)에 역할·저장·모델 버전을 기록합니다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 실제 가중치·네이티브 추론 | NativeAuthorTest 1개 통과. 10문제 모델 출제, 실제 정답 진행, 중간 저장 복원, 한 계획 한 게임 사용 |
+| 최초 모델 출제 시간 | API 37 x86_64 에뮬레이터 37,122ms. 내부 모델 복사 포함, 실물 태블릿 속도 아님 |
+| UI·마이그레이션 | 18개 통과. 실제 모델의 게임 시작→첫 정답 저장, 실패 시 기본 출제, 취소 시 게임 미생성, 기존 10문제/연습/메뉴/기록, v1·v2·v3 기록 보존 |
+| 작은 화면·글자 200% | 새 준비 실패/취소·16개 보기·1문제 연습 5개 통과, 화면 설정 복원 |
+| JVM | 74개 통과. 모델 재료 검증·모든 보기 수·틀린 유형/중복/최근 대상 거부 포함 |
+| 일반 빌드 | 디버그 및 서명 전 릴리스 통과, 버전 0.4.0 |
+| Lint | 오류 0, 기존 버전 알림 14개 |
+| APK 내용 | 두 APK의 GGUF 해시 일치, ARM64/x86_64 JNI·libc++와 필수 고지 포함 |
+
+일반 UI 회귀에는 명시적인 테스트 출제기를 주입합니다. NativeAuthorTest와 ActualAuthorUiTest는 대체 출제기 없이 실제 APK 가중치를 사용합니다. 계측 앱은 `com.example.memorysteps.difficultyvalidation`이며 개인 플레이 DB를 APK나 Git에 넣지 않습니다.
+
+로그: `.artifacts/native-author-test.log`, `native-author.json`, `author-ui-migration-tests.log`, `author-isolated-build.log`, `author-final-build.log`, `author-apk-verification.json`.
+
+최신 설치 파일: `.artifacts/MemorySteps-AI-2026-10-06.apk`. 기존 제출 APK 사본도 같은 파일로 갱신했습니다.
+
+- 디버그: 670,416,559바이트, SHA-256 `5bdaaad006752f9dfe83d3cab32e1e883c7bc11c4539125059875fba8e9ac37e`
+- 서명 전 릴리스 SHA-256: `634be421d21b06d7c542fb073723fd95857298c2f9790a9cb609b1d6a31dda76`
+
+![실제 모델이 출제한 게임 화면](screenshots/actual-ai-game-tablet.png)
+
+연결은 검증했지만 기존 v0.2의 약점 판단 정확도는 개선되지 않았습니다. 모든 보기 수에서의 실물 속도·메모리와 실제 사용자 효과, 개인 최고 기록 기능은 검증/구현 범위에 포함하지 않았습니다.
