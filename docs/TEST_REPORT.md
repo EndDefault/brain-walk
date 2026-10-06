@@ -387,3 +387,48 @@ UI 테스트는 API 37 에뮬레이터의 `com.example.memorysteps.difficultyval
 [학습하기](screenshots/focused-shared-learn.png) · [태블릿 16개 보기](screenshots/shared-ui-options-tablet.png) · [학습 현황](screenshots/shared-ui-records-tablet.png) · [글자 200% 보기](screenshots/shared-ui-options-largefont.png) · [글자 200% 기록](screenshots/shared-ui-records-largefont.png) · [글꼴 라이선스](screenshots/focused-shared-licenses.png)
 
 학습 현황과 문제 캡처는 별도 테스트 앱에서 생성한 합성 기록입니다.
+
+## 2026-10-06 · 제출 전 메뉴 정리와 학습 그래프
+
+홈·학습 선택·학습 현황·설명에 메뉴 전용 공통 스타일을 적용했습니다. 글꼴 저작권/개발용 AI 확인 버튼과 해당 화면을 제거했습니다. 학습 현황은 완료 게임·문제 수·첫 선택 정답률, 유형별 막대, 최근 정답률 선그래프, 다음 도전 조건으로 구성합니다. 새 차트 라이브러리나 외부 그래픽 자산 없이 Compose Canvas를 사용합니다.
+
+게임 화면·게임 엔진·난이도·DB 및 마이그레이션 코드는 변경하지 않았습니다. 이번 변경은 생성 모델 연결이나 AI 성능 개선을 포함하지 않습니다.
+
+| 확인 항목 | 결과 |
+| --- | --- |
+| JVM 단위 테스트 | 기존 67개 + 기록 지표 3개, 총 70개 통과 |
+| 지표 의미 | 기록 없음과 실제 0% 구분, 분모 기준 반올림, 큰 누적 값, 미완료 게임 제외, 최근 완료 10회 시간순 정렬 확인 |
+| 태블릿 2560×1600·320dpi·글자 100% | 메뉴 2 + 적응형 UI 2 + 대시보드 1 + 게임 흐름 6 = 11개 통과 |
+| 작은 화면 720×1600·320dpi·글자 200% | 메뉴 2 + 적응형 UI 2 + 대시보드 1 = 5개 통과 |
+| 대시보드 실제 저장 연결 | 저장소/게임 엔진으로 합성 5게임 생성. 첫 선택 34/50=68%, 추이 30·80·60·100·70% 확인. 재생성 후 동일 수치와 조건 유지 |
+| 기존 게임 회귀 | 세 유형/종합 시작, 10문제 완료, 오답 비활성화, 중단/재개, 연습 제외, 16개 보기·풀이 시간 확인 |
+| 일반 디버그·서명 전 릴리스 빌드 | 통과. 디버그 APK의 패키지는 `com.example.memorysteps` |
+| Lint | 오류 0, 기존 SDK/도구/라이브러리 버전 알림 14개. 없어진 화면의 미사용 문자열 제거 |
+| 글꼴 고지 보존 | 디버그·릴리스 모두 원본 폰트 3개 및 `assets/licenses/Pretendard-OFL-1.1.txt` 바이트 일치 확인 |
+
+계측은 API 37 에뮬레이터의 `com.example.memorysteps.difficultyvalidation`에서 실행했습니다. 개인 플레이 앱을 덮어쓰거나 DB를 초기화하지 않았습니다. 크기·밀도·글자 배율은 검증 후 원래 값(2560×1600·320dpi·1.0)으로 복원했습니다. 이번에는 전체 데이터 마이그레이션 계측을 반복하지 않았고 실물 태블릿/TalkBack 전체 흐름은 미검증입니다.
+
+태블릿에서는 유형/추이 그래프가 나란히 표시되고 작은 화면·큰 글자는 한 열로 이어집니다. 큰 글자에서는 세로 스크롤이 필요합니다. 빈 기록에 가짜 추이를 넣지 않으며 단일 기록은 점 하나로 표시합니다. 최근 그래프는 최근 30회 중 완료된 최대 10회이며 난이도가 다를 수 있어 ‘최고 기록’이나 향상률로 제시하지 않습니다.
+
+재현 명령:
+
+```powershell
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:testDebugUnitTest :app:lintDebug
+.\gradlew.bat -I tools/isolated-tests.init.gradle :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.example.memorysteps.NavigationSmokeTest,com.example.memorysteps.AdaptiveUiTest,com.example.memorysteps.RecordsDashboardTest,com.example.memorysteps.TrainingFlowTest'
+.\gradlew.bat :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:lintDebug
+```
+
+실행에서는 APK 패키지와 계측 대상을 확인한 뒤 ADB로 격리 앱을 설치하여 위 클래스를 실행했습니다. 로컬 로그는 `.artifacts/submission-validation-build.log`, `submission-tablet-tests.log`, `submission-largefont-tests.log`, `submission-final-build.log`입니다.
+
+설치용 디버그 APK: `app/build/outputs/apk/debug/app-debug.apk`, 별도 사본 `.artifacts/MemorySteps-submission-2026-10-06-debug.apk`.
+
+- 디버그 SHA-256: `0ec3184b8cf4a4fb11d42c27b4a4de74870b5ea1d48eec8fc075e3c8df9cebc2`
+- 서명 전 릴리스 SHA-256: `0e73e19bc0ad5531e6363e16b3406f56f591bf128cda9ddba8adc8a06b0ba8f6`
+
+![제출 전 홈 화면](screenshots/submission-home-tablet.png)
+
+![수치와 그래프로 바꾼 학습 현황](screenshots/submission-records-tablet.png)
+
+[학습 선택](screenshots/submission-learn-tablet.png) · [게임 설명](screenshots/submission-guide-tablet.png) · [유지한 게임 UI](screenshots/submission-game-tablet.png) · [글자 200% 홈](screenshots/submission-home-largefont.png) · [글자 200% 그래프](screenshots/submission-trend-largefont.png)
+
+화면의 학습 수치는 테스트용 합성 기록이며 개인 기록은 Git에 포함하지 않았습니다.

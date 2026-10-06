@@ -17,7 +17,7 @@
 | 원본 파일 | 해당 커밋의 `packages/pretendard/dist/public/static/Pretendard-Regular.otf`, `Pretendard-Bold.otf`, `Pretendard-Black.otf` |
 | 라이선스 | [SIL Open Font License 1.1 원문](https://github.com/orioncactus/pretendard/blob/5c41199ea0024a9e0b2cb31735265056e5472d76/LICENSE) |
 | 변경 여부 | 폰트 내용 수정·변환·서브셋 없음. Android 리소스 규칙에 맞춰 파일명만 소문자로 저장 |
-| 고지 보존 | [저장소 원문](licenses/Pretendard-OFL-1.1.txt) 및 APK의 `assets/licenses/Pretendard-OFL-1.1.txt`. 앱의 **게임 설명 → 글꼴 저작권·라이선스**에서 오프라인 열람 |
+| 고지 보존 | [저장소 원문](licenses/Pretendard-OFL-1.1.txt) 및 APK의 `assets/licenses/Pretendard-OFL-1.1.txt`. 2026-10-06 메뉴 정리로 화면 버튼은 제거했으며 배포 파일의 원문·저작권 고지는 유지 |
 
 사용한 v1.3.9의 라이선스 원문에 있는 저작권자 Kil Hyung-jin과 Reserved Font Name **Pretendard** 고지를 보존했습니다. 폰트 자체를 단독 판매하지 않으며 앱에 함께 배포합니다. 추후 폰트 내용을 수정한다면 OFL의 Reserved Font Name 조건을 다시 확인해야 합니다. 앱 코드는 폰트를 포함한다는 이유만으로 OFL로 바뀌지 않습니다.
 
