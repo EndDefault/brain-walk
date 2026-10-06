@@ -23,7 +23,7 @@ class AdaptiveUiTest {
     @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
     private val db get() = LearningDatabase.get(compose.activity)
 
-    @Test fun recordsReflectLearnedConditionsAfterRecreationAndModeSwitchRequiresFinishedGame() {
+    @Test fun recordsReflectLearnedConditionsAfterRecreationWithoutDeveloperMenus() {
         click(R.string.learn_menu)
         compose.waitUntil(5_000) { compose.onNodeWithText(text(R.string.mixed_title)).isEnabled() }
         runBlocking(Dispatchers.IO) {
@@ -43,17 +43,13 @@ class AdaptiveUiTest {
         }
         click(R.string.home_button)
         click(R.string.home_title)
-        val learned = compose.activity.getString(R.string.adaptive_conditions, "5", "3", 4, text(R.string.adaptive_unlimited))
-        compose.onNodeWithText(learned).performScrollTo().assertIsDisplayed()
-        compose.onAllNodesWithText(learned).assertCountEquals(1)
-        compose.onNodeWithText(text(R.string.adaptive_heading)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("condition-memory").performScrollTo().assertIsDisplayed().assert(hasAnyDescendant(hasText("5초")))
+        compose.onAllNodesWithTag("condition-memory").assertCountEquals(1)
+        compose.onNodeWithText(text(R.string.condition_title)).performScrollTo().assertIsDisplayed()
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithText(learned).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("condition-memory").performScrollTo().assertIsDisplayed().assert(hasAnyDescendant(hasText("5초")))
         screenshot("ai-records")
-        click(R.string.ai_diagnostics)
-        click(R.string.ai_mode_comparison)
-        compose.waitUntil(5_000) { compose.onAllNodesWithText("현재 모드: COMPARISON").fetchSemanticsNodes().isNotEmpty() }
-        click(R.string.ai_back)
+        compose.onNodeWithText("개발용 AI 확인").assertDoesNotExist()
         click(R.string.home_button)
         click(R.string.learn_menu)
         click(R.string.mixed_title)
@@ -61,9 +57,8 @@ class AdaptiveUiTest {
         click(R.string.pause_button)
         click(R.string.home_button)
         click(R.string.home_title)
-        click(R.string.ai_diagnostics)
-        compose.onNodeWithText(text(R.string.ai_mode_bandit)).performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText(text(R.string.ai_mode_comparison)).assertIsNotEnabled()
+        compose.onNodeWithText(text(R.string.condition_active_title)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("개발용 AI 확인").assertDoesNotExist()
     }
 
     @Test fun sixteenOptionsAndTimedSolveRemainReachableWithLargeText() {

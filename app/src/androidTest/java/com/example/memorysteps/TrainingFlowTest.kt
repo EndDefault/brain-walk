@@ -4,6 +4,9 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -59,7 +62,8 @@ class TrainingFlowTest {
         compose.onNodeWithText(compose.activity.getString(R.string.summary_first, 10)).assertIsDisplayed()
         click(R.string.home_button)
         click(R.string.home_title)
-        compose.onNodeWithText(compose.activity.getString(R.string.record_first, 10, 10)).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("metric-first").performScrollTo().assertIsDisplayed()
+            .assert(hasAnyDescendant(hasText(compose.activity.getString(R.string.metric_fraction, 10, 10))))
     }
 
     @Test fun wrongOptionDisablesAndRecreationKeepsCompletedProgress() {

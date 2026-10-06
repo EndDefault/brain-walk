@@ -14,15 +14,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.memorysteps.BuildConfig
 import com.example.memorysteps.R
 import com.example.memorysteps.game.TrainingMode
 import com.example.memorysteps.ui.components.DialogActionButton
-import com.example.memorysteps.ui.screens.diagnostics.DiagnosticsScreen
 import com.example.memorysteps.ui.screens.guide.GuideScreen
 import com.example.memorysteps.ui.screens.home.HomeScreen
 import com.example.memorysteps.ui.screens.learn.LearnScreen
-import com.example.memorysteps.ui.screens.licenses.LicensesScreen
 import com.example.memorysteps.ui.screens.records.RecordsScreen
 import com.example.memorysteps.ui.screens.training.TrainingScreen
 import com.example.memorysteps.ui.screens.training.TrainingViewModel
@@ -32,8 +29,6 @@ private const val GUIDE = "guide"
 private const val TRAINING = "training"
 private const val LEARN = "learn"
 private const val RECORDS = "records"
-private const val DIAGNOSTICS = "diagnostics"
-private const val LICENSES = "licenses"
 
 @Composable
 fun MemoryStepsApp() {
@@ -77,25 +72,13 @@ fun MemoryStepsApp() {
             RecordsScreen(
                 overview, types, history, profiles,
                 activeGame = active != null,
-                onDiagnostics = if (BuildConfig.DEBUG) ({ navController.navigate(DIAGNOSTICS) }) else null,
                 onHome = { navController.popBackStack(HOME, false) },
-            )
-        }
-        if (BuildConfig.DEBUG) composable(DIAGNOSTICS) {
-            DiagnosticsScreen(
-                trainingModel,
-                enabled = ready && !busy && !storageError && active == null,
-                onBack = { navController.popBackStack() },
             )
         }
         composable(GUIDE) {
             GuideScreen(
                 onReturnHome = { navController.popBackStack() },
-                onLicenses = { navController.navigate(LICENSES) { launchSingleTop = true } },
             )
-        }
-        composable(LICENSES) {
-            LicensesScreen(onBack = { navController.popBackStack() })
         }
         composable(TRAINING) {
             val current = training
